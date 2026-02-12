@@ -51,7 +51,15 @@ class MoleculeMLMAlgo:
         return tokenizer
 
     def _build_model(self):
-        from transformers import RobertaConfig, RobertaForMaskedLM
+        from transformers import RobertaForMaskedLM
+
+        # If a pretrained HF model hub ID is specified, load weights from it
+        pretrained_model = self.cfg.model.get("pretrained", None)
+        if pretrained_model:
+            return RobertaForMaskedLM.from_pretrained(pretrained_model)
+
+        # Otherwise, train from scratch with the specified architecture
+        from transformers import RobertaConfig
 
         m = self.cfg.model
         config = RobertaConfig(

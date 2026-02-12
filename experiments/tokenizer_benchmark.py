@@ -47,6 +47,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
     compatible_algorithms = {
         "smirk_roberta": MoleculeMLMAlgo,
         "atomwise_roberta": MoleculeMLMAlgo,
+        "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }
 
     def __init__(
@@ -196,7 +197,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         print(cyan("Saved final checkpoint to:"), final_ckpt_dir)
 
     def evaluation(self):
-        """Evaluate a trained model on the test set."""
+        """Evaluate a model on the validation and test sets."""
         from transformers import (
             Trainer,
             TrainingArguments,
@@ -209,16 +210,32 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         tokenizer = self.algo.tokenizer
         model = self.algo.model
 
+        print(cyan("Tokenizer:"), type(tokenizer).__name__)
+        print(cyan("Vocab size:"), len(tokenizer))
+        print(
+            cyan("Model params:"),
+            f"{sum(p.numel() for p in model.parameters()) / 1e6:.1f}M",
+        )
+
         # Load dataset
         dataset = self._load_dataset()
-        test_split = "test" if "test" in dataset else "validation" if "validation" in dataset else "test"
+
+        has_val = "validation" in dataset
+        has_test = "test" in dataset
+
+        if has_val:
+            print(cyan("Val samples:"), len(dataset["validation"]))
+        if has_test:
+            print(cyan("Test samples:"), len(dataset["test"]))
 
         report_to = self._setup_wandb_env()
 
         training_args = TrainingArguments(
             output_dir=str(self.output_dir),
+            run_name=self.root_cfg.name,
             per_device_eval_batch_size=self.cfg.training.per_device_eval_batch_size,
             report_to=report_to,
+            seed=self.cfg.training.seed,
         )
 
         data_collator = DataCollatorForLanguageModeling(
@@ -230,12 +247,20 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         trainer = Trainer(
             model=model,
             args=training_args,
-            eval_dataset=dataset[test_split],
             processing_class=tokenizer,
             data_collator=data_collator,
         )
 
-        results = trainer.evaluate()
-        perplexity = math.exp(results["eval_loss"])
-        print(cyan("Eval loss:"), f"{results['eval_loss']:.4f}")
-        print(cyan("Perplexity:"), f"{perplexity:.2f}")
+        # Evaluate on validation set
+        if has_val:
+            val_results = trainer.evaluate(eval_dataset=dataset["validation"], metric_key_prefix="val")
+            val_ppl = math.exp(val_results["val_loss"])
+            print(cyan("Val loss:"), f"{val_results['val_loss']:.4f}")
+            print(cyan("Val perplexity:"), f"{val_ppl:.2f}")
+
+        # Evaluate on test set
+        if has_test:
+            test_results = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix="test")
+            test_ppl = math.exp(test_results["test_loss"])
+            print(cyan("Test loss:"), f"{test_results['test_loss']:.4f}")
+            print(cyan("Test perplexity:"), f"{test_ppl:.2f}")

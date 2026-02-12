@@ -1,0 +1,9 @@
+defaults:
+  - base_roberta
+
+tokenizer:
+  type: auto
+  pretrained: "mikemayuare/SMILYBPE"
+
+model:
+  pretrained: "mikemayuare/SMILYBPE"
