@@ -1,0 +1,8 @@
+defaults:
+  - base_dataset
+
+name: molnet_tox21
+molnet_name: tox21
+data_dir: "data/molnet"
+max_length: 256
+seed: 42

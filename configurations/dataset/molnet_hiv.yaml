@@ -1,0 +1,8 @@
+defaults:
+  - base_dataset
+
+name: molnet_hiv
+molnet_name: hiv
+data_dir: "data/molnet"
+max_length: 256
+seed: 42
