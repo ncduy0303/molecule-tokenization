@@ -7,12 +7,14 @@ from .exp_base import BaseExperiment
 from .example_classification import ClassificationExperiment
 from .example_helloworld import HelloWorldExperiment
 from .tokenizer_benchmark import TokenizerBenchmarkExperiment
+from .tokenizer_training import TokenizerTrainingExperiment
 
 # each key has to be a yaml file under '[project_root]/configurations/experiment' without .yaml suffix
 exp_registry = dict(
     example_classification=ClassificationExperiment,
     example_helloworld=HelloWorldExperiment,
     tokenizer_benchmark=TokenizerBenchmarkExperiment,
+    tokenizer_training=TokenizerTrainingExperiment,
 )
 
 

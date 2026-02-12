@@ -1,0 +1,6 @@
+defaults:
+  - base_algo
+
+tokenizer:
+  type: bpe
+  min_frequency: 2000

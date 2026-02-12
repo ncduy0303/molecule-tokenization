@@ -1,0 +1,9 @@
+defaults:
+  - base_dataset
+
+name: pubchem10m_tokenizer_train
+hf_dataset: "mikemayuare/PubChem10M_SMILES_SELFIES"
+data_dir: "data/pubchem10m_tokenizer_train"
+smiles_column: "SMILES"
+corpus_size: 2000000
+seed: 42
