@@ -6,8 +6,8 @@ tasks: [training]
 training:
   per_device_train_batch_size: 64
   per_device_eval_batch_size: 64
-  num_train_epochs: 20
-  learning_rate: 5.0e-4
+  num_train_epochs: 3 # 20
+  learning_rate: 5.0e-5
   warmup_steps: 1000
   weight_decay: 0.01
   lr_scheduler_type: "linear"

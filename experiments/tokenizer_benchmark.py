@@ -46,7 +46,6 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
     # All use the same class; the yaml config determines the tokenizer type
     compatible_algorithms = {
         "smirk_roberta": MoleculeMLMAlgo,
-        "atomwise_roberta": MoleculeMLMAlgo,
         "bpe_roberta": MoleculeMLMAlgo,
         "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }
@@ -140,11 +139,11 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             learning_rate=t.learning_rate,
             warmup_steps=t.warmup_steps,
             weight_decay=t.weight_decay,
-            lr_scheduler_type=t.get("lr_scheduler_type", "linear"),
-            adam_beta1=t.get("adam_beta1", 0.9),
-            adam_beta2=t.get("adam_beta2", 0.999),
-            adam_epsilon=t.get("adam_epsilon", 1e-8),
-            max_grad_norm=t.get("max_grad_norm", 1.0),
+            lr_scheduler_type=t.lr_scheduler_type,
+            adam_beta1=t.adam_beta1,
+            adam_beta2=t.adam_beta2,
+            adam_epsilon=t.adam_epsilon,
+            max_grad_norm=t.max_grad_norm,
             fp16=t.fp16,
             bf16=t.bf16,
             seed=t.seed,
@@ -154,7 +153,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             logging_steps=t.logging_steps,
             report_to=report_to,
             # Checkpointing – save only the last model
-            save_strategy=t.get("save_strategy", "no"),
+            save_strategy=t.save_strategy,
             save_total_limit=t.save_total_limit,
             # Data
             dataloader_num_workers=t.dataloader_num_workers,

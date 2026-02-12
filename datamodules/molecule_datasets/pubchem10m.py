@@ -32,23 +32,23 @@ def load_pubchem10m(cfg: DictConfig, tokenizer):
     from datasets import DatasetDict, load_dataset
 
     smiles_col = cfg.smiles_column
-    max_length = cfg.get("max_length", 256)
-    seed = cfg.get("seed", 42)
-    data_dir = Path(cfg.get("data_dir", "data/pubchem10m"))
+    max_length = cfg.max_length
+    seed = cfg.seed
+    data_dir = Path(cfg.data_dir)
 
-    train_size = cfg.get("train_size", 1_000_000)
-    val_size = cfg.get("val_size", 100_000)
-    test_size = cfg.get("test_size", 100_000)
-    total_subset = train_size + val_size + test_size  # 1.2M
+    train_size = cfg.train_size
+    val_size = cfg.val_size
+    test_size = cfg.test_size
+    total_subset = train_size + val_size + test_size
 
     # Determine tokenizer name for cache key
-    tok_name = type(tokenizer).__name__.lower()
-    cache_path = data_dir / "processed" / tok_name
+    # tok_name = type(tokenizer).__name__.lower()
+    # cache_path = data_dir / "processed" / tok_name
 
     # If tokenized dataset already cached, load from disk
-    if cache_path.exists():
-        print(f"Loading cached tokenized dataset from {cache_path}")
-        return DatasetDict.load_from_disk(str(cache_path))
+    # if cache_path.exists():
+    #     print(f"Loading cached tokenized dataset from {cache_path}")
+    #     return DatasetDict.load_from_disk(str(cache_path))
 
     # ── Step 1: Get (or create) the fixed molecule indices ──────────────
     indices_path = data_dir / "subset_indices.json"
@@ -68,6 +68,10 @@ def load_pubchem10m(cfg: DictConfig, tokenizer):
             cfg.hf_dataset,
             split="train",
         )
+
+        # [DEBUG] Filter datasets to only take entries with SMILES string of length < max_length
+        # full_ds = full_ds.filter(lambda x: len(x[smiles_col]) < max_length)
+        
         n_total = len(full_ds)
         assert n_total >= total_subset, (
             f"Dataset has {n_total} molecules but we need {total_subset}"
@@ -131,8 +135,8 @@ def load_pubchem10m(cfg: DictConfig, tokenizer):
     )
 
     # ── Step 4: Cache to disk ───────────────────────────────────────────
-    cache_path.mkdir(parents=True, exist_ok=True)
-    splits.save_to_disk(str(cache_path))
-    print(f"Cached tokenized dataset to {cache_path}")
+    # cache_path.mkdir(parents=True, exist_ok=True)
+    # splits.save_to_disk(str(cache_path))
+    # print(f"Cached tokenized dataset to {cache_path}")
 
     return splits

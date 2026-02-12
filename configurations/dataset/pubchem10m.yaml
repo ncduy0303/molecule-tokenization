@@ -5,7 +5,7 @@ name: pubchem10m
 hf_dataset: "mikemayuare/PubChem10M_SMILES_SELFIES"
 data_dir: "data/pubchem10m"
 smiles_column: "SMILES"
-max_length: 256
+max_length: 510 # 512
 seed: 42
 train_size: 1000000
 val_size: 100000
