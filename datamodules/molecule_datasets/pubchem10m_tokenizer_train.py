@@ -3,7 +3,10 @@ Load a fixed 2M-molecule subset of PubChem10M for tokenizer training.
 
 This is separate from the 1.2M pretraining split used for RoBERTa MLM.
 The indices are saved to data/pubchem10m_tokenizer_train/subset_indices.json
-so that every tokenizer is trained on the exact same molecules.
+and the SMILES strings are written to data/pubchem10m_tokenizer_train/corpus.txt
+(one per line) so that every tokenizer is trained on the exact same molecules.
+The corpus.txt file can be passed directly to tokenizer training functions
+that accept file paths (e.g. smirk train_gpe).
 """
 
 import json
@@ -17,11 +20,17 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     """
     Load a fixed subset of raw SMILES strings for tokenizer training.
 
+    If a cached corpus.txt already exists on disk, loads from it directly
+    (no HuggingFace download needed). Otherwise downloads, samples, and
+    saves both subset_indices.json and corpus.txt.
+
     Args:
         cfg: Dataset config (configurations/dataset/pubchem10m_tokenizer_train.yaml).
 
     Returns:
-        A list of SMILES strings.
+        tuple: (smiles_list, corpus_path)
+            smiles_list: list of SMILES strings
+            corpus_path: Path to corpus.txt on disk
     """
     from datasets import load_dataset
 
@@ -30,10 +39,18 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     corpus_size = cfg.get("corpus_size", 2_000_000)
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
 
-    # ── Step 1: Get (or create) the fixed indices ───────────────────────
-    indices_path = data_dir / "subset_indices.json"
     data_dir.mkdir(parents=True, exist_ok=True)
+    indices_path = data_dir / "subset_indices.json"
+    corpus_path = data_dir / "corpus.txt"
 
+    # ── Fast path: load from cached corpus.txt ──────────────────────────
+    if corpus_path.exists():
+        print(f"Loading cached tokenizer-training corpus from {corpus_path}")
+        smiles_list = corpus_path.read_text().splitlines()
+        print(f"Loaded {len(smiles_list):,} SMILES strings from cache")
+        return smiles_list, corpus_path
+
+    # ── Slow path: download, sample, and save ───────────────────────────
     if indices_path.exists():
         print(f"Loading fixed tokenizer-training indices from {indices_path}")
         with open(indices_path) as f:
@@ -61,12 +78,15 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         print(f"Saved fixed tokenizer-training indices ({corpus_size:,} molecules) to {indices_path}")
         del full_ds
 
-    # ── Step 2: Load the selected SMILES strings ────────────────────────
+    # ── Load the selected SMILES strings ────────────────────────────────
     print(f"Loading {len(indices):,} SMILES strings for tokenizer training...")
     full_ds = load_dataset(cfg.hf_dataset, split="train")
     subset = full_ds.select(indices)
     smiles_list = subset[smiles_col]
     del full_ds, subset
 
-    print(f"Loaded {len(smiles_list):,} SMILES strings")
-    return smiles_list
+    # ── Save corpus.txt ─────────────────────────────────────────────────
+    corpus_path.write_text("\n".join(smiles_list))
+    print(f"Saved corpus ({len(smiles_list):,} SMILES) to {corpus_path}")
+
+    return smiles_list, corpus_path

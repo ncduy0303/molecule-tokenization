@@ -40,6 +40,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
     compatible_algorithms = {
         "train_bpe": TokenizerTrainer,
+        "train_smirk_gpe": TokenizerTrainer,
     }
 
     def __init__(
@@ -58,16 +59,19 @@ class TokenizerTrainingExperiment(BaseExperiment):
         algo_cfg = self.algo.cfg
         tok_type = algo_cfg.tokenizer.type
 
-        # Load the fixed SMILES corpus
-        corpus = load_pubchem10m_tokenizer_corpus(self.root_cfg.dataset)
+        # Load the fixed SMILES corpus (returns list + path to corpus.txt)
+        corpus, corpus_path = load_pubchem10m_tokenizer_corpus(self.root_cfg.dataset)
         print(cyan("Corpus size:"), f"{len(corpus):,} SMILES strings")
+        print(cyan("Corpus file:"), str(corpus_path))
 
         if tok_type == "bpe":
             self._train_bpe(corpus, algo_cfg)
+        elif tok_type == "smirk_gpe":
+            self._train_smirk_gpe(corpus_path, algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'bpe'"
+                "Supported: 'bpe', 'smirk_gpe'"
             )
 
     def _train_bpe(self, corpus, algo_cfg):
@@ -80,11 +84,13 @@ class TokenizerTrainingExperiment(BaseExperiment):
         from transformers import PreTrainedTokenizerFast
 
         tok_cfg = algo_cfg.tokenizer
-        min_frequency = tok_cfg.get("min_frequency", 2000)
+        vocab_size = tok_cfg.vocab_size
+        min_frequency = tok_cfg.min_frequency
 
         special_tokens = ["<pad>", "<s>", "</s>", "<unk>", "<mask>"]
 
         print(cyan("Training BPE tokenizer..."))
+        print(cyan("  Vocab size:"), vocab_size)
         print(cyan("  Min frequency:"), min_frequency)
 
         # Set up tokenizer with byte-level pre-tokenization
@@ -93,6 +99,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         tokenizer.decoder = ByteLevelDecoder()
 
         trainer = BpeTrainer(
+            vocab_size=vocab_size,
             min_frequency=min_frequency,
             special_tokens=special_tokens,
             show_progress=True,
@@ -124,6 +131,48 @@ class TokenizerTrainingExperiment(BaseExperiment):
         print(cyan("\nExample tokenizations:"))
         for smi in examples:
             tokens = tok_tf.tokenize(smi)
+            print(f"  {smi}")
+            print(f"    -> {tokens}")
+            print(f"    -> {len(tokens)} tokens")
+
+    def _train_smirk_gpe(self, corpus_path, algo_cfg):
+        """Train a Smirk-GPE tokenizer using the smirk library."""
+        from smirk import SmirkTokenizerFast, train_gpe
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+        min_frequency = tok_cfg.min_frequency
+        merge_brackets = tok_cfg.merge_brackets
+        split_structure = tok_cfg.split_structure
+
+        print(cyan("Training Smirk-GPE tokenizer..."))
+        print(cyan("  Vocab size:"), vocab_size)
+        print(cyan("  Min frequency:"), min_frequency)
+        print(cyan("  Merge brackets:"), merge_brackets)
+        print(cyan("  Split structure:"), split_structure)
+
+        tokenizer = train_gpe(
+            files=[str(corpus_path)],
+            ref=SmirkTokenizerFast(),
+            min_frequency=min_frequency,
+            vocab_size=vocab_size,
+            merge_brackets=merge_brackets,
+            split_structure=split_structure,
+        )
+
+        print(cyan("Trained vocab size:"), len(tokenizer))
+
+        # Save tokenizer
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # Print some example tokenizations
+        examples = corpus_path.read_text().splitlines()[:5]
+        print(cyan("\nExample tokenizations:"))
+        for smi in examples:
+            tokens = tokenizer.tokenize(smi)
             print(f"  {smi}")
             print(f"    -> {tokens}")
             print(f"    -> {len(tokens)} tokens")

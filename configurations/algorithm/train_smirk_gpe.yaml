@@ -2,6 +2,8 @@ defaults:
   - base_algo
 
 tokenizer:
-  type: bpe
+  type: smirk_gpe
   vocab_size: 5000
   min_frequency: 2000
+  merge_brackets: true
+  split_structure: true
