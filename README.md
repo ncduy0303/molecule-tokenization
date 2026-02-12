@@ -49,7 +49,7 @@ The files associated with this example are:
 <ul>
   <li>algorithms/examples/classifier/classifier.py</li>
   <li>configurations/algorithm/example_classifier.yaml</li>
-  <li>datasets/example_classification/cifar10.py</li>
+  <li>datamodules/example_classification/cifar10.py</li>
   <li>configurations/dataset/example_cifar10.yaml</li>
   <li>experiments/example_classification.py</li>
   <li>configurations/experiment/example_classification.yaml</li>
@@ -88,8 +88,8 @@ For pytorch experiments, write your algorithm as a [pytorch lightning](https://g
 `pl.LightningModule` which has extensive
 [documentation](https://lightning.ai/docs/pytorch/stable/). For a quick start, read "Define a LightningModule" in this [link](https://lightning.ai/docs/pytorch/stable/starter/introduction.html). Finally, add a yaml config file to `configurations/algorithm` imitating that of `configurations/algorithm/example_classifier.yaml`, for each algorithm you added.
 
-(If doing machine learning) Add your dataset in `datasets` following the `datasets/README.md` as well as the example code in
-`datasets/classification.py`. Finally, add a yaml config file to `configurations/dataset` imitating that of
+(If doing machine learning) Add your dataset in `datamodules` following the `datamodules/README.md` as well as the example code in
+`datamodules/classification.py`. Finally, add a yaml config file to `configurations/dataset` imitating that of
 `configurations/dataset/example_cifar10.yaml`, for each dataset you added.
 
 Add your experiment in `experiments` following the `experiments/README.md` or following the example code in

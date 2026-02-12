@@ -9,7 +9,7 @@ import lightning.pytorch as pl
 from .exp_base import BaseLightningExperiment
 
 from algorithms.examples.classifier import Classifier
-from datasets import CIFAR10Dataset
+from datamodules import CIFAR10Dataset
 
 
 class ClassificationExperiment(BaseLightningExperiment):

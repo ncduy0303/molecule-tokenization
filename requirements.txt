@@ -14,3 +14,7 @@ moviepy
 imageio
 einops
 wandb-osh
+transformers
+datasets
+accelerate
+smirk

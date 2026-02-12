@@ -1,0 +1,10 @@
+defaults:
+  - base_dataset
+
+name: qm9
+data_dir: "data/qm9"
+data_url: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/qm9.csv"
+smiles_column: "smiles"
+test_size: 0.2
+max_length: 128
+seed: 42

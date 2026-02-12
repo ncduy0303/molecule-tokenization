@@ -5,10 +5,12 @@ set -euo pipefail
 
 # --- Configuration (edit these) ---
 PARTITION="gpu"
-GRES="gpu:h100-96:1"
+# GRES="gpu:h100-96:1" 
+GRES="gpu:a100-40:1" # For testing when h100s are not available
 CPUS=8
 MEM="32G"
 TIME="02:00:00"
+# TIME="00:15:00" # For higher priority testing jobs
 # ----------------------------------
 
 if [ $# -lt 1 ]; then

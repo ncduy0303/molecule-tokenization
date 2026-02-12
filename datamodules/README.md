@@ -1,5 +1,5 @@
-The `datasets` folder is used to contain dataset code or environment code.
-Don't store actual data like images here! For those, please use the `data` folder instead of `datasets`.
+The `datamodules` folder is used to contain dataset code or environment code.
+Don't store actual data like images here! For those, please use the `data` folder instead of `datamodules`.
 
 Create a folder to create your own pytorch dataset definition. Then, update the `__init__.py`
 at every level to register all datasets.
