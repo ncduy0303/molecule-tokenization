@@ -60,6 +60,8 @@ class DownstreamClassificationExperiment(BaseExperiment):
 
     compatible_algorithms = {
         "bpe_classifier": MoleculeClassificationAlgo,
+        "bpe_classifier_pretrained_bbbp": MoleculeClassificationAlgo,
+        "bpe_classifier_pretrained_hiv": MoleculeClassificationAlgo,
     }
 
     def __init__(
@@ -158,19 +160,15 @@ class DownstreamClassificationExperiment(BaseExperiment):
         )
 
         # ── Custom data collator for classification ─────────────────────
+        from transformers import DataCollatorWithPadding
+        base_collator = DataCollatorWithPadding(tokenizer, return_tensors="pt")
+
         def collate_fn(features):
             """Pad input_ids/attention_mask and stack labels."""
             import torch
 
-            input_ids = [f["input_ids"] for f in features]
-            attention_mask = [f["attention_mask"] for f in features]
-            labels = [f["labels"] for f in features]
-
-            # Pad sequences
-            batch = tokenizer.pad(
-                {"input_ids": input_ids, "attention_mask": attention_mask},
-                return_tensors="pt",
-            )
+            labels = [f.pop("labels") for f in features]
+            batch = base_collator(features)
             batch["labels"] = torch.tensor(labels, dtype=torch.float)
             return batch
 
@@ -234,17 +232,14 @@ class DownstreamClassificationExperiment(BaseExperiment):
             remove_unused_columns=False,
         )
 
+        from transformers import DataCollatorWithPadding
+        base_collator = DataCollatorWithPadding(tokenizer, return_tensors="pt")
+
         def collate_fn(features):
             import torch
 
-            input_ids = [f["input_ids"] for f in features]
-            attention_mask = [f["attention_mask"] for f in features]
-            labels = [f["labels"] for f in features]
-
-            batch = tokenizer.pad(
-                {"input_ids": input_ids, "attention_mask": attention_mask},
-                return_tensors="pt",
-            )
+            labels = [f.pop("labels") for f in features]
+            batch = base_collator(features)
             batch["labels"] = torch.tensor(labels, dtype=torch.float)
             return batch
 

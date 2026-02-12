@@ -1,0 +1,8 @@
+defaults:
+  - base_roberta
+
+tokenizer:
+  type: ape
+  pretrained: "mikemayuare/SMILYAPE"
+  vocab_filename: "tokenizer.json"
+  revision: "72d036ca2592c429d8326ba860da00f2673e287e"

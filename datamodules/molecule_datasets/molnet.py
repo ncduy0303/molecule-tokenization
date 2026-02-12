@@ -48,11 +48,24 @@ def _get_smiles_col(dataset_name: str) -> str:
 
 
 def _get_target_columns(dataset_name: str, df: pd.DataFrame) -> list[str]:
-    """Return the target column(s) for a dataset."""
+    """Return the numeric target column(s) for a dataset."""
+    # Explicit target columns for datasets with non-numeric metadata
+    KNOWN_TARGETS = {
+        "hiv": ["HIV_active"],
+        "bbbp": ["p_np"],
+        "bace": ["Class"],
+        "esol": ["measured log solubility in mols per litre"],
+        "freesolv": ["expt"],
+        "lipo": ["exp"],
+    }
+    if dataset_name in KNOWN_TARGETS:
+        return KNOWN_TARGETS[dataset_name]
+
+    # For tox21, sider, clintox, etc.: use all numeric columns except SMILES
     smi_col = _get_smiles_col(dataset_name)
-    # Exclude the SMILES column and any scaffold/index columns
     exclude = {smi_col, "scaffold", "mol_id", "Unnamed: 0"}
-    return [c for c in df.columns if c not in exclude]
+    return [c for c in df.columns
+            if c not in exclude and pd.api.types.is_numeric_dtype(df[c])]
 
 
 def _download_csv(dataset_name: str, data_dir: Path) -> pd.DataFrame:

@@ -52,17 +52,33 @@ class MoleculeClassificationAlgo:
 
     def build_model(self, num_labels: int):
         """
-        Build RobertaForSequenceClassification from a pretrained MLM model.
-        Must be called after dataset is loaded (to know num_labels).
+        Build RobertaForSequenceClassification.
+
+        If model.finetuned is set, loads an already-finetuned classifier
+        directly from the hub. Otherwise, initializes a new classification
+        head on top of a pretrained MLM model (model.pretrained).
         """
         from transformers import RobertaForSequenceClassification
 
-        pretrained = self.cfg.model.pretrained
-        self.model = RobertaForSequenceClassification.from_pretrained(
-            pretrained,
-            num_labels=num_labels,
-            problem_type="multi_label_classification",
-        )
+        finetuned = self.cfg.model.get("finetuned", None)
+        if finetuned:
+            # Load an already-finetuned classifier (weights + head)
+            self.model = RobertaForSequenceClassification.from_pretrained(
+                finetuned,
+                num_labels=num_labels,
+                problem_type="multi_label_classification",
+                ignore_mismatched_sizes=True,
+            )
+        else:
+            # New classification head on top of pretrained MLM backbone
+            pretrained = self.cfg.model.pretrained
+            self.model = RobertaForSequenceClassification.from_pretrained(
+                pretrained,
+                num_labels=num_labels,
+                problem_type="multi_label_classification",
+                ignore_mismatched_sizes=True,
+            )
+
         # Align pad token ID with tokenizer
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
 
