@@ -229,6 +229,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
 
         training_args = TrainingArguments(
             output_dir=str(self.output_dir),
+            run_name=self.root_cfg.name,
             per_device_eval_batch_size=self.cfg.training.per_device_eval_batch_size,
             report_to=report_to,
             remove_unused_columns=False,
