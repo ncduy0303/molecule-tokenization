@@ -150,9 +150,9 @@ def load_molnet(cfg: DictConfig, tokenizer):
         f"Available: {list(MOLNET_URLS.keys())}"
     )
 
-    data_dir = Path(cfg.get("data_dir", "data/molnet"))
-    seed = cfg.get("seed", 42)
-    max_length = cfg.get("max_length", 256)
+    data_dir = Path(cfg.data_dir)
+    seed = cfg.seed
+    max_length = cfg.max_length
 
     # ── Step 1: Download CSV ────────────────────────────────────────────
     df = _download_csv(dataset_name, data_dir)
@@ -207,12 +207,22 @@ def load_molnet(cfg: DictConfig, tokenizer):
         labels = sub[target_cols].fillna(-1).values.astype(float).tolist()
 
         # Tokenize
-        encodings = tokenizer(
-            smiles,
-            truncation=True,
-            max_length=max_length,
-            padding=False,
-        )
+        from apetokenizer.ape_tokenizer import APETokenizer
+        is_ape = isinstance(tokenizer, APETokenizer)
+        # Do not pass `truncation` to APETokenizer
+        if is_ape:
+            encodings = tokenizer(
+                smiles,
+                max_length=max_length,
+                padding=False,
+            )
+        else:
+            encodings = tokenizer(
+                smiles,
+                truncation=True,
+                max_length=max_length,
+                padding=False,
+            )
 
         return Dataset.from_dict({
             "input_ids": encodings["input_ids"],

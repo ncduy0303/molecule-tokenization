@@ -1,0 +1,11 @@
+defaults:
+  - base_algo
+
+tokenizer:
+  type: ape
+  pretrained: "mikemayuare/SMILYAPE"
+
+model:
+  pretrained: "mikemayuare/SMILYAPE"
+  # pretrained: "data/pretrained_models/SMILYAPE-1M-10Epoch"
+

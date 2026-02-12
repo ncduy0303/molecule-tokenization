@@ -1,9 +1,0 @@
-defaults:
-  - base_algo
-
-tokenizer:
-  type: auto
-  pretrained: "mikemayuare/SMILYBPE"
-
-model:
-  finetuned: "mikemayuare/SMILY-BPE-BBBP"

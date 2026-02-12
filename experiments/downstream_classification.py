@@ -59,9 +59,11 @@ class DownstreamClassificationExperiment(BaseExperiment):
     """
 
     compatible_algorithms = {
+        "ape_classifier": MoleculeClassificationAlgo,
         "bpe_classifier": MoleculeClassificationAlgo,
+        "smirk_classifier": MoleculeClassificationAlgo,
+        "ape_classifier_pretrained_bbbp": MoleculeClassificationAlgo,
         "bpe_classifier_pretrained_bbbp": MoleculeClassificationAlgo,
-        "bpe_classifier_pretrained_hiv": MoleculeClassificationAlgo,
     }
 
     def __init__(
@@ -137,16 +139,16 @@ class DownstreamClassificationExperiment(BaseExperiment):
             per_device_eval_batch_size=t.per_device_eval_batch_size,
             num_train_epochs=t.num_train_epochs,
             learning_rate=t.learning_rate,
-            warmup_ratio=t.get("warmup_ratio", 0.1),
+            warmup_ratio=t.warmup_ratio,
             weight_decay=t.weight_decay,
-            lr_scheduler_type=t.get("lr_scheduler_type", "linear"),
-            max_grad_norm=t.get("max_grad_norm", 1.0),
-            fp16=t.get("fp16", False),
-            bf16=t.get("bf16", False),
-            seed=t.get("seed", 42),
+            lr_scheduler_type=t.lr_scheduler_type,
+            max_grad_norm=t.max_grad_norm,
+            fp16=t.fp16,
+            bf16=t.bf16,
+            seed=t.seed,
             # Evaluation & Logging
             eval_strategy="epoch",
-            logging_steps=t.get("logging_steps", 50),
+            logging_steps=t.logging_steps,
             report_to=report_to,
             # Checkpointing – save best by ROC-AUC
             save_strategy="epoch",
@@ -155,7 +157,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
             metric_for_best_model="roc_auc",
             greater_is_better=True,
             # Data
-            dataloader_num_workers=t.get("dataloader_num_workers", 4),
+            dataloader_num_workers=t.dataloader_num_workers,
             remove_unused_columns=False,
         )
 
@@ -173,7 +175,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
             return batch
 
         # ── Early stopping ──────────────────────────────────────────────
-        early_stopping_patience = t.get("early_stopping_patience", 3)
+        early_stopping_patience = t.early_stopping_patience
 
         trainer = Trainer(
             model=model,

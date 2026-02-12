@@ -7,3 +7,4 @@ tokenizer:
 
 model:
   pretrained: "mikemayuare/SMILYBPE"
+  # pretrained: "data/pretrained_models/SMILYBPE-1M-10Epoch"

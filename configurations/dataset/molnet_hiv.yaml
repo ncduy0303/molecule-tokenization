@@ -4,5 +4,5 @@ defaults:
 name: molnet_hiv
 molnet_name: hiv
 data_dir: "data/molnet"
-max_length: 256
+max_length: 510
 seed: 42

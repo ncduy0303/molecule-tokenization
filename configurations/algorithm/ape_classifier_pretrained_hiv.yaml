@@ -1,0 +1,9 @@
+defaults:
+  - base_algo
+
+tokenizer:
+  type: ape
+  pretrained: "mikemayuare/SMILYAPE"
+
+model:
+  finetuned: "mikemayuare/SMILY-APE-HIV"

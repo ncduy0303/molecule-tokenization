@@ -1,0 +1,8 @@
+defaults:
+  - base_algo
+
+tokenizer:
+  type: smirk
+
+model:
+  pretrained: "data/pretrained_models/SMILYSMIRK-1M-10Epoch"
