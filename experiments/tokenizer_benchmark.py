@@ -5,16 +5,17 @@ Trains a from-scratch RoBERTa MLM model using HuggingFace Trainer,
 allowing easy comparison of different molecule tokenizers (smirk, atomwise, etc.)
 within the research template's Hydra + wandb + Slurm infrastructure.
 
-Usage:
+Usage (PubChem10M benchmark):
+    python -m main +name=smirk_pubchem \
+        experiment=tokenizer_benchmark \
+        dataset=pubchem10m \
+        algorithm=smirk_roberta
+
+Usage (QM9):
     python -m main +name=smirk_qm9 \
         experiment=tokenizer_benchmark \
         dataset=qm9 \
         algorithm=smirk_roberta
-
-    python -m main +name=atomwise_qm9 \
-        experiment=tokenizer_benchmark \
-        dataset=qm9 \
-        algorithm=atomwise_roberta
 """
 
 import os
@@ -74,6 +75,19 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
 
         return "wandb"
 
+    def _load_dataset(self):
+        """Load and tokenize the configured dataset."""
+        if not self.algo:
+            self._build_algo()
+
+        dataset_name = self.root_cfg.dataset._name
+        if dataset_name not in dataset_registry:
+            raise ValueError(
+                f"Dataset '{dataset_name}' not in registry. "
+                f"Available: {list(dataset_registry.keys())}"
+            )
+        return dataset_registry[dataset_name](self.root_cfg.dataset, self.algo.tokenizer)
+
     def training(self):
         """Train a RoBERTa MLM model with the configured tokenizer and dataset."""
         from transformers import (
@@ -96,17 +110,18 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             f"{sum(p.numel() for p in model.parameters()) / 1e6:.1f}M",
         )
 
-        # Load and tokenize dataset
-        dataset_name = self.root_cfg.dataset._name
-        if dataset_name not in dataset_registry:
-            raise ValueError(
-                f"Dataset '{dataset_name}' not in registry. "
-                f"Available: {list(dataset_registry.keys())}"
-            )
-        dataset = dataset_registry[dataset_name](self.root_cfg.dataset, tokenizer)
+        # Load and tokenize dataset (supports both 2-way and 3-way splits)
+        dataset = self._load_dataset()
+
+        has_val = "validation" in dataset
+        eval_split = "validation" if has_val else "test"
+        has_test = "test" in dataset
 
         print(cyan("Train samples:"), len(dataset["train"]))
-        print(cyan("Test samples:"), len(dataset["test"]))
+        if has_val:
+            print(cyan("Val samples:"), len(dataset["validation"]))
+        if has_test:
+            print(cyan("Test samples:"), len(dataset["test"]))
 
         # Configure wandb
         report_to = self._setup_wandb_env()
@@ -123,16 +138,21 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             learning_rate=t.learning_rate,
             warmup_steps=t.warmup_steps,
             weight_decay=t.weight_decay,
+            lr_scheduler_type=t.get("lr_scheduler_type", "linear"),
+            adam_beta1=t.get("adam_beta1", 0.9),
+            adam_beta2=t.get("adam_beta2", 0.999),
+            adam_epsilon=t.get("adam_epsilon", 1e-8),
+            max_grad_norm=t.get("max_grad_norm", 1.0),
             fp16=t.fp16,
             bf16=t.bf16,
             seed=t.seed,
             # Evaluation & Logging
             eval_strategy=t.eval_strategy,
-            eval_steps=t.eval_steps,
+            eval_steps=t.get("eval_steps", None),
             logging_steps=t.logging_steps,
             report_to=report_to,
-            # Checkpointing
-            save_steps=t.save_steps,
+            # Checkpointing – save only the last model
+            save_strategy=t.get("save_strategy", "no"),
             save_total_limit=t.save_total_limit,
             # Data
             dataloader_num_workers=t.dataloader_num_workers,
@@ -149,18 +169,31 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             model=model,
             args=training_args,
             train_dataset=dataset["train"],
-            eval_dataset=dataset["test"],
+            eval_dataset=dataset[eval_split],
             processing_class=tokenizer,
             data_collator=data_collator,
         )
 
         trainer.train()
 
-        # Final evaluation
-        results = trainer.evaluate()
-        perplexity = math.exp(results["eval_loss"])
-        print(cyan("Final eval loss:"), f"{results['eval_loss']:.4f}")
-        print(cyan("Final perplexity:"), f"{perplexity:.2f}")
+        # Validation eval (final)
+        val_results = trainer.evaluate(eval_dataset=dataset[eval_split])
+        val_ppl = math.exp(val_results["eval_loss"])
+        print(cyan(f"Final {eval_split} loss:"), f"{val_results['eval_loss']:.4f}")
+        print(cyan(f"Final {eval_split} perplexity:"), f"{val_ppl:.2f}")
+
+        # Test evaluation (separate split, run once at the very end)
+        if has_val and has_test:
+            test_results = trainer.evaluate(eval_dataset=dataset["test"])
+            test_ppl = math.exp(test_results["eval_loss"])
+            print(cyan("Test loss:"), f"{test_results['eval_loss']:.4f}")
+            print(cyan("Test perplexity:"), f"{test_ppl:.2f}")
+
+        # Save the final model checkpoint
+        final_ckpt_dir = self.output_dir / "final_checkpoint"
+        trainer.save_model(str(final_ckpt_dir))
+        tokenizer.save_pretrained(str(final_ckpt_dir))
+        print(cyan("Saved final checkpoint to:"), final_ckpt_dir)
 
     def evaluation(self):
         """Evaluate a trained model on the test set."""
@@ -177,8 +210,8 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         model = self.algo.model
 
         # Load dataset
-        dataset_name = self.root_cfg.dataset._name
-        dataset = dataset_registry[dataset_name](self.root_cfg.dataset, tokenizer)
+        dataset = self._load_dataset()
+        test_split = "test" if "test" in dataset else "validation" if "validation" in dataset else "test"
 
         report_to = self._setup_wandb_env()
 
@@ -197,7 +230,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         trainer = Trainer(
             model=model,
             args=training_args,
-            eval_dataset=dataset["test"],
+            eval_dataset=dataset[test_split],
             processing_class=tokenizer,
             data_collator=data_collator,
         )
