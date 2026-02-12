@@ -209,6 +209,11 @@ wheels = [
 ]
 
 [[package]]
+name = "apetokenizer"
+version = "0.0.0"
+source = { git = "https://github.com/mikemayuare/apetokenizer#ff1b3cc00476a8d017d7d54e925681a04475d47f" }
+
+[[package]]
 name = "async-timeout"
 version = "5.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1314,6 +1319,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "accelerate" },
+    { name = "apetokenizer" },
     { name = "click" },
     { name = "colorama" },
     { name = "datasets" },
@@ -1341,6 +1347,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate", specifier = ">=1.12.0" },
+    { name = "apetokenizer", git = "https://github.com/mikemayuare/apetokenizer" },
     { name = "click", specifier = ">=8.3.1" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "datasets", specifier = ">=4.5.0" },

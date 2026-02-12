@@ -119,17 +119,26 @@ def load_pubchem10m(cfg: DictConfig, tokenizer):
         splits = splits.remove_columns(cols_to_remove)
 
     # ── Step 3: Tokenize ────────────────────────────────────────────────
+    from apetokenizer.ape_tokenizer import APETokenizer
+    is_ape = isinstance(tokenizer, APETokenizer)
+
     def tokenize_fn(examples):
+        # Do not pass `truncation` to APETokenizer
+        if is_ape:
+            return tokenizer(
+                examples[smiles_col],
+                max_length=max_length,
+                padding=False,
+            )
         return tokenizer(
             examples[smiles_col],
             truncation=True,
             max_length=max_length,
-            padding=False,  # dynamic padding via DataCollator at training time
+            padding=False,
         )
-
     splits = splits.map(
         tokenize_fn,
-        batched=True,
+        batched=not is_ape, # APETokenizer does not support batched tokenization
         remove_columns=[smiles_col],
         desc="Tokenizing",
     )

@@ -38,10 +38,15 @@ class MoleculeMLMAlgo:
             tokenizer = AutoTokenizer.from_pretrained(
                 tok_cfg.pretrained, trust_remote_code=True
             )
+        elif tok_type == "ape":
+            from apetokenizer.ape_tokenizer import APETokenizer
+
+            tokenizer = APETokenizer()
+            tokenizer.load_vocabulary(tok_cfg.pretrained)
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto'"
+                "Supported: 'smirk', 'auto', 'ape'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)

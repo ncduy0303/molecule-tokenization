@@ -46,7 +46,9 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
     # All use the same class; the yaml config determines the tokenizer type
     compatible_algorithms = {
         "smirk_roberta": MoleculeMLMAlgo,
+        "ape_roberta": MoleculeMLMAlgo,
         "bpe_roberta": MoleculeMLMAlgo,
+        "ape_roberta_pretrained": MoleculeMLMAlgo,
         "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }
 
