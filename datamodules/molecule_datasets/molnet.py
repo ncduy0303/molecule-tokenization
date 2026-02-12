@@ -209,13 +209,24 @@ def load_molnet(cfg: DictConfig, tokenizer):
         # Tokenize
         from apetokenizer.ape_tokenizer import APETokenizer
         is_ape = isinstance(tokenizer, APETokenizer)
-        # Do not pass `truncation` to APETokenizer
+
         if is_ape:
-            encodings = tokenizer(
-                smiles,
-                max_length=max_length,
-                padding=False,
-            )
+            # APETokenizer does not support batched tokenization
+            all_input_ids = []
+            all_attention_mask = []
+            for smi in smiles:
+                enc = tokenizer(
+                    smi,
+                    max_length=max_length,
+                    padding=False,
+                )
+                all_input_ids.append(enc["input_ids"])
+                all_attention_mask.append(enc["attention_mask"])
+            return Dataset.from_dict({
+                "input_ids": all_input_ids,
+                "attention_mask": all_attention_mask,
+                "labels": labels,
+            })
         else:
             encodings = tokenizer(
                 smiles,
@@ -223,12 +234,11 @@ def load_molnet(cfg: DictConfig, tokenizer):
                 max_length=max_length,
                 padding=False,
             )
-
-        return Dataset.from_dict({
-            "input_ids": encodings["input_ids"],
-            "attention_mask": encodings["attention_mask"],
-            "labels": labels,
-        })
+            return Dataset.from_dict({
+                "input_ids": encodings["input_ids"],
+                "attention_mask": encodings["attention_mask"],
+                "labels": labels,
+            })
 
     dataset = DatasetDict({
         "train": df_to_hf(train_idx),
