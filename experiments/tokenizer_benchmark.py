@@ -47,6 +47,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
     compatible_algorithms = {
         "smirk_roberta": MoleculeMLMAlgo,
         "atomwise_roberta": MoleculeMLMAlgo,
+        "bpe_roberta": MoleculeMLMAlgo,
         "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }
 

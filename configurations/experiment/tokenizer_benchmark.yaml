@@ -4,7 +4,7 @@ defaults:
 tasks: [training]
 
 training:
-  per_device_train_batch_size: 32
+  per_device_train_batch_size: 64
   per_device_eval_batch_size: 64
   num_train_epochs: 20
   learning_rate: 5.0e-4
@@ -18,7 +18,7 @@ training:
   mlm_probability: 0.15
   fp16: false
   bf16: false
-  dataloader_num_workers: 4
+  dataloader_num_workers: 8
   eval_strategy: "epoch"
   logging_steps: 100
   save_strategy: "no"
