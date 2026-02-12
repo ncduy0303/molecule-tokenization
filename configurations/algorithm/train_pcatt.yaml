@@ -1,0 +1,7 @@
+defaults:
+  - base_algo
+
+tokenizer:
+  type: pcatt
+  vocab_size: 5000
+  min_frequency: 0

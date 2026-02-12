@@ -20,6 +20,7 @@ from omegaconf import DictConfig
 from experiments.exp_base import BaseExperiment
 from datamodules.molecule_datasets.pubchem10m_tokenizer_train import (
     load_pubchem10m_tokenizer_corpus,
+    build_word_counts,
 )
 
 from utils.print_utils import cyan
@@ -41,6 +42,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
     compatible_algorithms = {
         "train_bpe": TokenizerTrainer,
         "train_smirk_gpe": TokenizerTrainer,
+        "train_pcatt": TokenizerTrainer,
     }
 
     def __init__(
@@ -68,10 +70,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_bpe(corpus, algo_cfg)
         elif tok_type == "smirk_gpe":
             self._train_smirk_gpe(corpus_path, algo_cfg)
+        elif tok_type == "pcatt":
+            self._train_pcatt(algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'bpe', 'smirk_gpe'"
+                "Supported: 'bpe', 'smirk_gpe', 'pcatt'"
             )
 
     def _train_bpe(self, corpus, algo_cfg):
@@ -170,6 +174,59 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         # Print some example tokenizations
         examples = corpus_path.read_text().splitlines()[:5]
+        print(cyan("\nExample tokenizations:"))
+        for smi in examples:
+            tokens = tokenizer.tokenize(smi)
+            print(f"  {smi}")
+            print(f"    -> {tokens}")
+            print(f"    -> {len(tokens)} tokens")
+
+    def _train_pcatt(self, algo_cfg):
+        """Train a PCATT (GreedTok) tokenizer using the pcatt library."""
+        from pcatt.hf.greedtok import GreedTok
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+        min_frequency = tok_cfg.get("min_frequency", 0)
+
+        special_tokens = {
+            "bos_token": "[BOS]",
+            "eos_token": "[EOS]",
+            "unk_token": "[UNK]",
+            "sep_token": "[SEP]",
+            "pad_token": "[PAD]",
+            "cls_token": "[CLS]",
+            "mask_token": "[MASK]",
+        }
+
+        # Build (or load cached) word counts from the corpus
+        word_count, longest_struct_len = build_word_counts(self.root_cfg.dataset)
+
+        print(cyan("Training PCATT (GreedTok) tokenizer..."))
+        print(cyan("  Vocab size:"), vocab_size)
+        print(cyan("  Min frequency:"), min_frequency)
+        print(cyan("  Unique substructures:"), f"{len(word_count):,}")
+        print(cyan("  Longest substructure:"), longest_struct_len)
+
+        tokenizer = GreedTok().train_new_from_counts(
+            word_count,
+            vocab_size=vocab_size,
+            special_tokens_map=special_tokens,
+            min_word_count=min_frequency,
+            max_token_length=longest_struct_len,
+        )
+
+        print(cyan("Trained vocab size:"), len(tokenizer))
+
+        # Save tokenizer
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # Print some example tokenizations
+        corpus, _ = load_pubchem10m_tokenizer_corpus(self.root_cfg.dataset)
+        examples = corpus[:5]
         print(cyan("\nExample tokenizations:"))
         for smi in examples:
             tokens = tokenizer.tokenize(smi)

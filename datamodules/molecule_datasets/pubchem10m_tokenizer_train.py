@@ -7,9 +7,13 @@ and the SMILES strings are written to data/pubchem10m_tokenizer_train/corpus.txt
 (one per line) so that every tokenizer is trained on the exact same molecules.
 The corpus.txt file can be passed directly to tokenizer training functions
 that accept file paths (e.g. smirk train_gpe).
+
+A word-count dictionary (SMILES substructures split by regex) is also cached
+to data/pubchem10m_tokenizer_train/word_counts.json for PCATT training.
 """
 
 import json
+import re
 import numpy as np
 from pathlib import Path
 
@@ -90,3 +94,63 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     print(f"Saved corpus ({len(smiles_list):,} SMILES) to {corpus_path}")
 
     return smiles_list, corpus_path
+
+
+def build_word_counts(cfg: DictConfig):
+    """
+    Build (or load cached) SMILES substructure word counts for PCATT training.
+
+    Splits each SMILES string on structural elements using a regex pattern,
+    then counts occurrences. The result is cached to word_counts.json.
+
+    Args:
+        cfg: Dataset config (configurations/dataset/pubchem10m_tokenizer_train.yaml).
+
+    Returns:
+        tuple: (word_count, longest_struct_len)
+            word_count: dict mapping substructure string -> count
+            longest_struct_len: length of the longest substructure seen
+    """
+    data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
+    word_counts_path = data_dir / "word_counts.json"
+
+    # ── Fast path: load from cache ──────────────────────────────────────
+    if word_counts_path.exists():
+        print(f"Loading cached word counts from {word_counts_path}")
+        with open(word_counts_path) as f:
+            cached = json.load(f)
+        word_count = cached["word_count"]
+        longest_struct_len = cached["longest_struct_len"]
+        print(f"Loaded {len(word_count):,} unique substructures (longest: {longest_struct_len})")
+        return word_count, longest_struct_len
+
+    # ── Slow path: compute from corpus ──────────────────────────────────
+    smiles_list, _ = load_pubchem10m_tokenizer_corpus(cfg)
+
+    print(f"Building word counts from {len(smiles_list):,} SMILES strings...")
+    word_count: dict[str, int] = {}
+    longest_struct_len = 0
+
+    for smi in smiles_list:
+        structures = [s for s in re.split(r"(\.|%\d{2}|[\(\)]|[/\\]|\[.*?]|\d)", smi) if s]
+        for struct in structures:
+            if len(struct) > longest_struct_len:
+                longest_struct_len = len(struct)
+            if struct in word_count:
+                word_count[struct] += 1
+            else:
+                word_count[struct] = 1
+
+    # ── Save to disk ────────────────────────────────────────────────────
+    cached = {
+        "corpus_size": len(smiles_list),
+        "unique_substructures": len(word_count),
+        "longest_struct_len": longest_struct_len,
+        "word_count": word_count,
+    }
+    with open(word_counts_path, "w") as f:
+        json.dump(cached, f)
+    print(f"Saved word counts ({len(word_count):,} unique substructures, "
+          f"longest: {longest_struct_len}) to {word_counts_path}")
+
+    return word_count, longest_struct_len
