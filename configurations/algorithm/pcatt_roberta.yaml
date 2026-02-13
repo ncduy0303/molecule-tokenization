@@ -1,0 +1,6 @@
+defaults:
+  - base_roberta
+
+tokenizer:
+  type: pcatt
+  pretrained: data/pretrained_tokenizers/PCATT-5K

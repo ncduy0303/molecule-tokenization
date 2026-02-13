@@ -4,6 +4,6 @@ defaults:
 tokenizer:
   type: smirk_gpe
   vocab_size: 5000
-  min_frequency: 2000
+  min_frequency: 0
   merge_brackets: true
   split_structure: true

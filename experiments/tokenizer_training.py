@@ -187,7 +187,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         tok_cfg = algo_cfg.tokenizer
         vocab_size = tok_cfg.vocab_size
-        min_frequency = tok_cfg.get("min_frequency", 0)
+        min_frequency = tok_cfg.min_frequency
 
         special_tokens = {
             "bos_token": "[BOS]",
@@ -210,7 +210,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         tokenizer = GreedTok().train_new_from_counts(
             word_count,
-            vocab_size=vocab_size,
+            vocab_size=vocab_size - 256 + len(special_tokens), # [DEBUG] 
             special_tokens_map=special_tokens,
             min_word_count=min_frequency,
             max_token_length=longest_struct_len,

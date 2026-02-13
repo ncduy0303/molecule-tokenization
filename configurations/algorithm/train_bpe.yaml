@@ -4,4 +4,4 @@ defaults:
 tokenizer:
   type: bpe
   vocab_size: 5000
-  min_frequency: 2000
+  min_frequency: 0

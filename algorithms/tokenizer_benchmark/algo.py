@@ -31,7 +31,7 @@ class MoleculeMLMAlgo:
         if tok_type == "smirk":
             from smirk import SmirkTokenizerFast
 
-            tokenizer = SmirkTokenizerFast()
+            tokenizer = SmirkTokenizerFast(tok_cfg.get("pretrained", None))
         elif tok_type == "auto":
             from transformers import AutoTokenizer
 
@@ -43,6 +43,10 @@ class MoleculeMLMAlgo:
 
             tokenizer = APETokenizer()
             tokenizer.load_vocabulary(tok_cfg.pretrained)
+        elif tok_type == "pcatt":
+            from pcatt.hf.greedtok import GreedTok
+
+            tokenizer = GreedTok.from_pretrained(tok_cfg.pretrained)
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "

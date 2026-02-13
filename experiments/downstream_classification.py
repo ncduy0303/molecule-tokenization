@@ -192,6 +192,10 @@ class DownstreamClassificationExperiment(BaseExperiment):
             ],
         )
 
+        print(cyan("[Debug] Vocab sizes:"))
+        print("Tokenizer vocab size:", tokenizer.vocab_size)
+        print("Model vocab size:", model.config.vocab_size)
+
         trainer.train()
 
         # ── Final validation ────────────────────────────────────────────
