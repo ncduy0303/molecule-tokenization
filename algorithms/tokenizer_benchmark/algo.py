@@ -50,7 +50,7 @@ class MoleculeMLMAlgo:
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto', 'ape'."
+                "Supported: 'smirk', 'auto', 'ape', 'pcatt'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)

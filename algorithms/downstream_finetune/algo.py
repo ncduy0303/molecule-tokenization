@@ -44,10 +44,14 @@ class MoleculeClassificationAlgo:
 
             tokenizer = APETokenizer()
             tokenizer.load_vocabulary(tok_cfg.pretrained)
+        elif tok_type == "pcatt":
+            from pcatt.hf.greedtok import GreedTok
+
+            tokenizer = GreedTok.from_pretrained(tok_cfg.pretrained)
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto', 'ape'."
+                "Supported: 'smirk', 'auto', 'ape', 'pcatt'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)

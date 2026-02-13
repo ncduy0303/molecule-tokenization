@@ -5,4 +5,5 @@ tokenizer:
   type: smirk
 
 model:
-  pretrained: "data/pretrained_models/SMILYSMIRK-1M-10Epoch"
+  # pretrained: "data/pretrained_models/SMILYSMIRK-1M-10Epoch"
+  pretrained: "data/pretrained_models/SMILYSMIRKGPE-1M-10Epoch"

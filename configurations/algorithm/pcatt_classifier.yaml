@@ -1,0 +1,9 @@
+defaults:
+  - base_algo
+
+tokenizer:
+  type: pcatt
+  pretrained: "data/pretrained_tokenizers/PCATT-5K"
+
+model:
+  pretrained: "data/pretrained_models/SMILYPCATT-1M-10Epoch"

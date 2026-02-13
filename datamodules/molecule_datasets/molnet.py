@@ -233,6 +233,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
                 truncation=True,
                 max_length=max_length,
                 padding=False,
+                return_attention_mask=True,
             )
             return Dataset.from_dict({
                 "input_ids": encodings["input_ids"],

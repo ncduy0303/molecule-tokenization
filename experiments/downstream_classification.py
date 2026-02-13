@@ -61,6 +61,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
     compatible_algorithms = {
         "ape_classifier": MoleculeClassificationAlgo,
         "bpe_classifier": MoleculeClassificationAlgo,
+        "pcatt_classifier": MoleculeClassificationAlgo,
         "smirk_classifier": MoleculeClassificationAlgo,
         "ape_classifier_pretrained_hiv": MoleculeClassificationAlgo,
         "bpe_classifier_pretrained_hiv": MoleculeClassificationAlgo,
@@ -191,10 +192,6 @@ class DownstreamClassificationExperiment(BaseExperiment):
                 ),
             ],
         )
-
-        print(cyan("[Debug] Vocab sizes:"))
-        print("Tokenizer vocab size:", tokenizer.vocab_size)
-        print("Model vocab size:", model.config.vocab_size)
 
         trainer.train()
 

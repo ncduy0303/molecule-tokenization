@@ -7,6 +7,6 @@ tokenizer:
   pretrained: "data/ape_tokenizer/mikemayuare/vocab.json"
 
 model:
-  pretrained: "mikemayuare/SMILYAPE"
-  # pretrained: "data/pretrained_models/SMILYAPE-1M-10Epoch"
+  # pretrained: "mikemayuare/SMILYAPE"
+  pretrained: "data/pretrained_models/SMILYAPE-1M-10Epoch"
 
