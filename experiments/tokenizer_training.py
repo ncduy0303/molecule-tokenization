@@ -43,6 +43,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
     compatible_algorithms = {
         "train_ape": TokenizerTrainer,
         "train_bpe": TokenizerTrainer,
+        "train_smirk": TokenizerTrainer,
         "train_smirk_gpe": TokenizerTrainer,
         "train_pcatt": TokenizerTrainer,
     }
@@ -72,6 +73,8 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_ape(corpus, algo_cfg)
         elif tok_type == "bpe":
             self._train_bpe(corpus, algo_cfg)
+        elif tok_type == "smirk":
+            self._train_smirk(corpus_path, algo_cfg)
         elif tok_type == "smirk_gpe":
             self._train_smirk_gpe(corpus_path, algo_cfg)
         elif tok_type == "pcatt":
@@ -79,7 +82,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'ape', 'bpe', 'smirk_gpe', 'pcatt'"
+                "Supported: 'ape', 'bpe', 'smirk', 'smirk_gpe', 'pcatt'"
             )
 
     def _train_ape(self, corpus, algo_cfg):
@@ -189,6 +192,66 @@ class TokenizerTrainingExperiment(BaseExperiment):
             print(f"    -> {tokens}")
             print(f"    -> {len(tokens)} tokens")
 
+    def _train_smirk(self, corpus_path, algo_cfg):
+        """Rearrange the vocab indexes of the base Smirk tokenizer to match RoBERTa's expected special token indices."""
+        from smirk import SmirkTokenizerFast
+
+        default_tokenizer = SmirkTokenizerFast()
+        base_vocab = default_tokenizer.get_vocab()
+
+        special_tokens = [
+            default_tokenizer.cls_token,
+            default_tokenizer.pad_token,
+            default_tokenizer.sep_token,
+            default_tokenizer.unk_token,
+            default_tokenizer.mask_token,
+            default_tokenizer.bos_token,
+            default_tokenizer.eos_token,
+        ]
+        for st in special_tokens:
+            base_vocab.pop(st, None)
+
+        # Move all special tokens to the front of the vocab with fixed indices for RoBERTa compatibility
+        # Padding index must be 1
+        new_vocab = {
+            "[BOS]": 0,
+            "[PAD]": 1,
+            "[EOS]": 2,
+            "[UNK]": 3,
+            "[CLS]": 4,
+            "[SEP]": 5,
+            "[MASK]": 6,
+        }
+
+        # Add the rest of the chemical tokens
+        current_idx = len(new_vocab)
+        for token in sorted(base_vocab.keys()): # Sort for deterministic assignment
+            new_vocab[token] = current_idx
+            current_idx += 1
+
+        with open("vocab.json", "w") as f:
+            json.dump(new_vocab, f, indent=4)
+
+        # Re-instantiate the SmirkTokenizerFast with the new vocab
+        tokenizer = SmirkTokenizerFast(vocab_file="vocab.json")
+
+        print(cyan("Trained vocab size:"), len(tokenizer))
+
+        # Save tokenizer
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # Print some example tokenizations
+        examples = corpus_path.read_text().splitlines()[:5]
+        print(cyan("\nExample tokenizations:"))
+        for smi in examples:
+            tokens = tokenizer.tokenize(smi)
+            print(f"  {smi}")
+            print(f"    -> {tokens}")
+            print(f"    -> {len(tokens)} tokens")
+
     def _train_smirk_gpe(self, corpus_path, algo_cfg):
         """Train a Smirk-GPE tokenizer using the smirk library."""
         from smirk import SmirkTokenizerFast, train_gpe
@@ -198,7 +261,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         min_frequency = tok_cfg.min_frequency
         merge_brackets = tok_cfg.merge_brackets
         split_structure = tok_cfg.split_structure
-        no_gpe = tok_cfg.get("no_gpe", False)
+        base_tokenizer_file = tok_cfg.tokenizer_file
 
         print(cyan("Training Smirk-GPE tokenizer..."))
         print(cyan("  Vocab size:"), vocab_size)
@@ -208,22 +271,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         tokenizer = train_gpe(
             files=[str(corpus_path)],
-            ref=SmirkTokenizerFast(),
+            ref=SmirkTokenizerFast(base_tokenizer_file),
             min_frequency=min_frequency,
             vocab_size=vocab_size,
             merge_brackets=merge_brackets,
             split_structure=split_structure,
-        ) if not no_gpe else SmirkTokenizerFast()
-
-        # Put the padding token at idx 1 for consistency with RoBERTa-style tokenizers
-        base_vocab = tokenizer.get_vocab()
-        base_vocab.pop(tokenizer.pad_token) # type: ignore
-        new_vocab = {tokenizer.pad_token: 1} # type: ignore
-        for token, idx in base_vocab.items():
-            new_vocab[token] = idx + 1 if idx >= 1 else idx
-        with open("vocab.json", "w") as f:
-            json.dump(new_vocab, f, indent=4)
-        tokenizer = SmirkTokenizerFast(vocab_file="vocab.json")
+        )
 
         print(cyan("Trained vocab size:"), len(tokenizer))
 

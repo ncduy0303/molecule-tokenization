@@ -5,3 +5,4 @@ tokenizer:
   type: smirk_gpe
   merge_brackets: true
   split_structure: true
+  tokenizer_file: data/pretrained_tokenizers/SMIRK/tokenizer.json
