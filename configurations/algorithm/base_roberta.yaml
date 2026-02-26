@@ -6,4 +6,4 @@ model:
   intermediate_size: 1536
   num_hidden_layers: 6
   num_attention_heads: 12
-  max_position_embeddings: 512
+  max_position_embeddings: 514 # https://github.com/huggingface/transformers/issues/1363
