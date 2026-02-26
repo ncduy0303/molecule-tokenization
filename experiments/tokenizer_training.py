@@ -11,6 +11,7 @@ Usage:
         algorithm=train_bpe
 """
 
+import json
 import os
 from typing import Optional, Union
 from pathlib import Path
@@ -197,6 +198,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         min_frequency = tok_cfg.min_frequency
         merge_brackets = tok_cfg.merge_brackets
         split_structure = tok_cfg.split_structure
+        no_gpe = tok_cfg.get("no_gpe", False)
 
         print(cyan("Training Smirk-GPE tokenizer..."))
         print(cyan("  Vocab size:"), vocab_size)
@@ -211,7 +213,17 @@ class TokenizerTrainingExperiment(BaseExperiment):
             vocab_size=vocab_size,
             merge_brackets=merge_brackets,
             split_structure=split_structure,
-        )
+        ) if not no_gpe else SmirkTokenizerFast()
+
+        # Put the padding token at idx 1 for consistency with RoBERTa-style tokenizers
+        base_vocab = tokenizer.get_vocab()
+        base_vocab.pop(tokenizer.pad_token) # type: ignore
+        new_vocab = {tokenizer.pad_token: 1} # type: ignore
+        for token, idx in base_vocab.items():
+            new_vocab[token] = idx + 1 if idx >= 1 else idx
+        with open("vocab.json", "w") as f:
+            json.dump(new_vocab, f, indent=4)
+        tokenizer = SmirkTokenizerFast(vocab_file="vocab.json")
 
         print(cyan("Trained vocab size:"), len(tokenizer))
 
