@@ -304,13 +304,13 @@ class TokenizerTrainingExperiment(BaseExperiment):
         min_frequency = tok_cfg.min_frequency
 
         special_tokens = {
-            "bos_token": "[BOS]",
-            "eos_token": "[EOS]",
-            "unk_token": "[UNK]",
-            "sep_token": "[SEP]",
-            "pad_token": "[PAD]",
-            "cls_token": "[CLS]",
-            "mask_token": "[MASK]",
+            "bos_token": tok_cfg.bos_token,
+            "pad_token": tok_cfg.pad_token,
+            "eos_token": tok_cfg.eos_token,
+            "unk_token": tok_cfg.unk_token,
+            "cls_token": tok_cfg.cls_token,
+            "sep_token": tok_cfg.sep_token,
+            "mask_token": tok_cfg.mask_token,
         }
 
         # Build (or load cached) word counts from the corpus
