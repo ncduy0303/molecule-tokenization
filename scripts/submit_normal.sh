@@ -35,6 +35,8 @@ cat > "$JOB_SCRIPT" << JOBEOF
 #SBATCH --job-name=${NAME}
 #SBATCH --partition=${PARTITION}
 #SBATCH --nodelist=${NODELIST}
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=${CPUS}
 #SBATCH --mem=${MEM}
 #SBATCH --time=${TIME}

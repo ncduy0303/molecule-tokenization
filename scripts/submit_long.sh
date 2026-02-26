@@ -5,7 +5,7 @@ set -euo pipefail
 # --- Configuration (Optimized for AMD EPYC Nodes) ---
 PARTITION="long"
 # Targeting the specific xcnf node range for AMD EPYC 7763
-NODELIST="xcnf[0-25]" 
+NODELIST="xcnf[0-25]"
 CPUS=16               # Increased slightly as EPYC has 64 cores per node
 MEM="128G"            # Increased; these nodes have 1TB available
 TIME="3-00:00:00"     # +400 for jobs 5 hrs or less; +200 for jobs 1 day or less
@@ -35,6 +35,8 @@ cat > "$JOB_SCRIPT" << JOBEOF
 #SBATCH --job-name=${NAME}
 #SBATCH --partition=${PARTITION}
 #SBATCH --nodelist=${NODELIST}
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=${CPUS}
 #SBATCH --mem=${MEM}
 #SBATCH --time=${TIME}
