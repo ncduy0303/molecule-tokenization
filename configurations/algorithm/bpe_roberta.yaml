@@ -3,4 +3,5 @@ defaults:
 
 tokenizer:
   type: auto
-  pretrained: "mikemayuare/SMILYBPE"
+  # pretrained: "mikemayuare/SMILYBPE"
+  pretrained: "data/pretrained_tokenizers/SMILYBBPE-5K"

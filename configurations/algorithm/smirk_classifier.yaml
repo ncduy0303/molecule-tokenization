@@ -3,9 +3,9 @@ defaults:
 
 tokenizer:
   type: smirk
-  pretrained: data/pretrained_tokenizers/SMIRK/tokenizer.json
-  # pretrained: data/pretrained_tokenizers/SMIRK-GPE-5K/tokenizer.json
+  # pretrained: data/pretrained_tokenizers/SMIRK/tokenizer.json
+  pretrained: data/pretrained_tokenizers/SMIRK-GPE-5K/tokenizer.json
 
 model:
-  pretrained: "data/pretrained_models/SMILYSMIRK-1M-20Epoch"
-  # pretrained: "data/pretrained_models/SMILYSMIRKGPE-1M-10Epoch"
+  # pretrained: "data/pretrained_models/SMILYSMIRK-1M-20Epoch"
+  pretrained: "data/pretrained_models/SMILYSMIRKGPE-1M-20Epoch"

@@ -116,23 +116,25 @@ class TokenizerTrainingExperiment(BaseExperiment):
         print(cyan("Saved tokenizer to:"), save_dir)
 
         # Set unk_token_id (Not set by APETokenizer)
-        tokenizer.unk_token_id = tokenizer.convert_tokens_to_ids(tokenizer.unk_token) # type: ignore
+        tokenizer.unk_token_id = tokenizer.convert_tokens_to_ids(tokenizer.unk_token)  # type: ignore
+
         # Bind tokenize method
         def ape_tokenize(self, text: str) -> list[str]:
             return self.convert_ids_to_tokens(self.encode(text))
-        tokenizer.tokenize = ape_tokenize.__get__(tokenizer) # type: ignore
+
+        tokenizer.tokenize = ape_tokenize.__get__(tokenizer)  # type: ignore
 
         # Print some example tokenizations
         examples = corpus[:5]
         print(cyan("\nExample tokenizations:"))
         for smi in examples:
-            tokens = tokenizer.tokenize(smi) # type: ignore
+            tokens = tokenizer.tokenize(smi)  # type: ignore
             print(f"  {smi}")
             print(f"    -> {tokens}")
             print(f"    -> {len(tokens)} tokens")
 
     def _train_bpe(self, corpus, algo_cfg):
-        """Train a BPE tokenizer using HuggingFace tokenizers library."""
+        """Train a BBPE tokenizer using HuggingFace tokenizers library."""
         from tokenizers import Tokenizer
         from tokenizers.models import BPE
         from tokenizers.trainers import BpeTrainer
@@ -144,21 +146,34 @@ class TokenizerTrainingExperiment(BaseExperiment):
         vocab_size = tok_cfg.vocab_size
         min_frequency = tok_cfg.min_frequency
 
-        special_tokens = ["<pad>", "<s>", "</s>", "<unk>", "<mask>"]
+        special_tokens = [
+            tok_cfg.bos_token,
+            tok_cfg.pad_token,
+            tok_cfg.eos_token,
+            tok_cfg.unk_token,
+            tok_cfg.cls_token,
+            tok_cfg.sep_token,
+            tok_cfg.mask_token,
+        ]
 
-        print(cyan("Training BPE tokenizer..."))
+        print(cyan("Training BBPE tokenizer..."))
         print(cyan("  Vocab size:"), vocab_size)
         print(cyan("  Min frequency:"), min_frequency)
 
-        # Set up tokenizer with byte-level pre-tokenization
-        tokenizer = Tokenizer(BPE(unk_token="<unk>"))
-        tokenizer.pre_tokenizer = ByteLevelPreTokenizer()
+        # Set up tokenizer. (Note: unk_token is rarely/never triggered in BBPE,
+        # but kept here to align with your special_tokens list).
+        tokenizer = Tokenizer(BPE(unk_token=tok_cfg.unk_token))
+
+        # 1. Set add_prefix_space=False for SMILES strings
+        tokenizer.pre_tokenizer = ByteLevelPreTokenizer(add_prefix_space=False)
         tokenizer.decoder = ByteLevelDecoder()
 
+        # 2. Explicitly pass the ByteLevel alphabet to the trainer
         trainer = BpeTrainer(
             vocab_size=vocab_size,
             min_frequency=min_frequency,
             special_tokens=special_tokens,
+            initial_alphabet=ByteLevelPreTokenizer.alphabet(),
             show_progress=True,
         )
 
@@ -170,11 +185,13 @@ class TokenizerTrainingExperiment(BaseExperiment):
         # Wrap in HuggingFace PreTrainedTokenizerFast
         tok_tf = PreTrainedTokenizerFast(
             tokenizer_object=tokenizer,
-            unk_token="<unk>",
-            pad_token="<pad>",
-            bos_token="<s>",
-            eos_token="</s>",
-            mask_token="<mask>",
+            unk_token=tok_cfg.unk_token,
+            pad_token=tok_cfg.pad_token,
+            bos_token=tok_cfg.bos_token,
+            eos_token=tok_cfg.eos_token,
+            mask_token=tok_cfg.mask_token,
+            cls_token=tok_cfg.cls_token,
+            sep_token=tok_cfg.sep_token,
         )
 
         # Save tokenizer
@@ -225,7 +242,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         # Add the rest of the chemical tokens
         current_idx = len(new_vocab)
-        for token in sorted(base_vocab.keys()): # Sort for deterministic assignment
+        for token in sorted(base_vocab.keys()):  # Sort for deterministic assignment
             new_vocab[token] = current_idx
             current_idx += 1
 
@@ -324,7 +341,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         tokenizer = GreedTok().train_new_from_counts(
             word_count,
-            vocab_size=vocab_size - 256 + len(special_tokens), # [DEBUG] 
+            vocab_size=vocab_size - 256 + len(special_tokens),  # [DEBUG]
             special_tokens_map=special_tokens,
             min_word_count=min_frequency,
             max_token_length=longest_struct_len,
