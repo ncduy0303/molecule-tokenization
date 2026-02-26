@@ -40,6 +40,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
     """
 
     compatible_algorithms = {
+        "train_ape": TokenizerTrainer,
         "train_bpe": TokenizerTrainer,
         "train_smirk_gpe": TokenizerTrainer,
         "train_pcatt": TokenizerTrainer,
@@ -66,7 +67,9 @@ class TokenizerTrainingExperiment(BaseExperiment):
         print(cyan("Corpus size:"), f"{len(corpus):,} SMILES strings")
         print(cyan("Corpus file:"), str(corpus_path))
 
-        if tok_type == "bpe":
+        if tok_type == "ape":
+            self._train_ape(corpus, algo_cfg)
+        elif tok_type == "bpe":
             self._train_bpe(corpus, algo_cfg)
         elif tok_type == "smirk_gpe":
             self._train_smirk_gpe(corpus_path, algo_cfg)
@@ -75,8 +78,54 @@ class TokenizerTrainingExperiment(BaseExperiment):
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'bpe', 'smirk_gpe', 'pcatt'"
+                "Supported: 'ape', 'bpe', 'smirk_gpe', 'pcatt'"
             )
+
+    def _train_ape(self, corpus, algo_cfg):
+        """Train an APE tokenizer using the apetokenizer library."""
+        from apetokenizer.ape_tokenizer import APETokenizer
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+        min_frequency = tok_cfg.min_frequency
+
+        print(cyan("Training APE tokenizer..."))
+        print(cyan("  Vocab size:"), vocab_size)
+        print(cyan("  Min frequency:"), min_frequency)
+
+        tokenizer = APETokenizer(
+            pad_token=tok_cfg.pad_token,
+            bos_token=tok_cfg.bos_token,
+            eos_token=tok_cfg.eos_token,
+            unk_token=tok_cfg.unk_token,
+            mask_token=tok_cfg.mask_token,
+        )
+
+        tokenizer.train(corpus, max_vocab_size=vocab_size, min_freq_for_merge=min_frequency)
+
+        print(cyan("Trained vocab size:"), len(tokenizer))
+
+        # Save tokenizer
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # Set unk_token_id (Not set by APETokenizer)
+        tokenizer.unk_token_id = tokenizer.convert_tokens_to_ids(tokenizer.unk_token) # type: ignore
+        # Bind tokenize method
+        def ape_tokenize(self, text: str) -> list[str]:
+            return self.convert_ids_to_tokens(self.encode(text))
+        tokenizer.tokenize = ape_tokenize.__get__(tokenizer) # type: ignore
+
+        # Print some example tokenizations
+        examples = corpus[:5]
+        print(cyan("\nExample tokenizations:"))
+        for smi in examples:
+            tokens = tokenizer.tokenize(smi) # type: ignore
+            print(f"  {smi}")
+            print(f"    -> {tokens}")
+            print(f"    -> {len(tokens)} tokens")
 
     def _train_bpe(self, corpus, algo_cfg):
         """Train a BPE tokenizer using HuggingFace tokenizers library."""

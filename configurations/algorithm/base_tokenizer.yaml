@@ -1,0 +1,13 @@
+defaults:
+  - base_algo
+
+tokenizer:
+  vocab_size: 5000
+  min_frequency: 0
+  bos_token: "[BOS]"
+  eos_token: "[EOS]"
+  unk_token: "[UNK]"
+  sep_token: "[SEP]"
+  pad_token: "[PAD]"
+  cls_token: "[CLS]"
+  mask_token: "[MASK]"

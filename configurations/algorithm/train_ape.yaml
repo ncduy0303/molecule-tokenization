@@ -2,4 +2,4 @@ defaults:
   - base_tokenizer
 
 tokenizer:
-  type: bpe
+  type: ape
