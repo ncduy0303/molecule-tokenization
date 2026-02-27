@@ -1,9 +1,9 @@
 defaults:
   - base_dataset
 
-name: pubchem10m
+name: pubchem10m_mlm_train
 hf_dataset: "mikemayuare/PubChem10M_SMILES_SELFIES"
-data_dir: "data/pubchem10m"
+data_dir: "data/pubchem10m_mlm_train"
 smiles_column: "SMILES"
 max_length: 512
 seed: 42

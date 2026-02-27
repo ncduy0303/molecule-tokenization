@@ -1,11 +1,9 @@
-from .qm9 import load_qm9
-from .pubchem10m import load_pubchem10m
+from .pubchem10m_mlm_train import load_pubchem10m_mlm_train
 
 # Add new molecule datasets here.
 # Each loader takes (cfg, tokenizer) and returns a HF DatasetDict with train/val/test splits.
 dataset_registry = {
-    "qm9": load_qm9,
-    "pubchem10m": load_pubchem10m,
+    "pubchem10m_mlm_train": load_pubchem10m_mlm_train,
 }
 
 __all__ = ["dataset_registry"]

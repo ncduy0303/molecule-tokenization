@@ -3,7 +3,7 @@ Load a fixed 2M-molecule subset of PubChem10M for tokenizer training.
 
 This is separate from the 1.2M pretraining split used for RoBERTa MLM.
 The indices are saved to data/pubchem10m_tokenizer_train/subset_indices.json
-and the SMILES strings are written to data/pubchem10m_tokenizer_train/corpus.txt
+and the canonical SMILES strings are written to data/pubchem10m_tokenizer_train/corpus.txt
 (one per line) so that every tokenizer is trained on the exact same molecules.
 The corpus.txt file can be passed directly to tokenizer training functions
 that accept file paths (e.g. smirk train_gpe).
@@ -19,21 +19,25 @@ from pathlib import Path
 
 from omegaconf import DictConfig
 
+# Import RDKit for validation and canonicalization
+from rdkit import Chem
+from rdkit import RDLogger
+
 
 def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     """
-    Load a fixed subset of raw SMILES strings for tokenizer training.
+    Load a fixed subset of canonical SMILES strings for tokenizer training.
 
     If a cached corpus.txt already exists on disk, loads from it directly
-    (no HuggingFace download needed). Otherwise downloads, samples, and
-    saves both subset_indices.json and corpus.txt.
+    (no HuggingFace download needed). Otherwise downloads, scans for valid
+    molecules, canonicalizes them, and saves both subset_indices.json and corpus.txt.
 
     Args:
         cfg: Dataset config (configurations/dataset/pubchem10m_tokenizer_train.yaml).
 
     Returns:
         tuple: (smiles_list, corpus_path)
-            smiles_list: list of SMILES strings
+            smiles_list: list of canonical SMILES strings
             corpus_path: Path to corpus.txt on disk
     """
     from datasets import load_dataset
@@ -51,56 +55,114 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     if corpus_path.exists():
         print(f"Loading cached tokenizer-training corpus from {corpus_path}")
         smiles_list = corpus_path.read_text().splitlines()
-        print(f"Loaded {len(smiles_list):,} SMILES strings from cache")
+        print(f"Loaded {len(smiles_list):,} canonical SMILES strings from cache")
         return smiles_list, corpus_path
 
-    # ── Slow path: download, sample, and save ───────────────────────────
+    # ── Slow path: download, sample valid indices, and save ─────────────
+    needs_generation = True
     if indices_path.exists():
-        print(f"Loading fixed tokenizer-training indices from {indices_path}")
         with open(indices_path) as f:
             idx_info = json.load(f)
-        indices = idx_info["indices"]
-    else:
-        print("Downloading PubChem10M to sample tokenizer-training indices...")
+
+        # Check if the existing indices were strictly validated by RDKit
+        if idx_info.get("rdkit_validated", False) and idx_info.get("seed") == seed:
+            print(f"Loading fixed, RDKit-validated tokenizer-training indices from {indices_path}")
+            indices = idx_info["indices"]
+            needs_generation = False
+        else:
+            print(f"Existing indices at {indices_path} are outdated or not RDKit-validated. Regenerating...")
+
+    if needs_generation:
+        print("Downloading/Loading full PubChem10M to select valid indices (first time only)...")
         full_ds = load_dataset(cfg.hf_dataset, split="train")
         n_total = len(full_ds)
-        assert n_total >= corpus_size, (
-            f"Dataset has {n_total} molecules but we need {corpus_size}"
-        )
+        assert n_total >= corpus_size, f"Dataset has {n_total} molecules but we need {corpus_size}"
 
         rng = np.random.default_rng(seed)
-        indices = sorted(rng.choice(n_total, size=corpus_size, replace=False).tolist())
+        shuffled_indices = rng.permutation(n_total).tolist()
+
+        valid_indices = []
+        batch_size = 100000  # Process in chunks to avoid loading all SMILES at once
+
+        # Disable RDKit warnings to prevent spamming the console during search
+        RDLogger.DisableLog("rdApp.*")  # type: ignore
+        print(f"Scanning dataset for {corpus_size:,} valid molecules...")
+
+        for i in range(0, n_total, batch_size):
+            batch_idx = shuffled_indices[i : i + batch_size]
+            batch_smiles = full_ds.select(batch_idx)[smiles_col]
+
+            for idx, smi in zip(batch_idx, batch_smiles):
+                try:
+                    mol = Chem.MolFromSmiles(smi)
+                    if mol is not None:
+                        # Verify it can be successfully canonicalized
+                        _ = Chem.MolToSmiles(mol)
+                        valid_indices.append(idx)
+                        if len(valid_indices) == corpus_size:
+                            break
+                except Exception:
+                    pass  # Skip invalid molecule
+
+            print(f"  Found {len(valid_indices):,} / {corpus_size:,} valid molecules...")
+            if len(valid_indices) == corpus_size:
+                break
+
+        RDLogger.EnableLog("rdApp.*")  # type: ignore
+
+        if len(valid_indices) < corpus_size:
+            raise RuntimeError(f"Only found {len(valid_indices):,} valid molecules in the dataset!")
+
+        indices = sorted(valid_indices)
 
         idx_info = {
             "seed": seed,
             "total_source": n_total,
             "corpus_size": corpus_size,
+            "rdkit_validated": True,
             "indices": indices,
         }
         with open(indices_path, "w") as f:
             json.dump(idx_info, f)
-        print(f"Saved fixed tokenizer-training indices ({corpus_size:,} molecules) to {indices_path}")
+        print(f"Saved fixed tokenizer-training indices ({corpus_size:,} valid molecules) to {indices_path}")
         del full_ds
 
-    # ── Load the selected SMILES strings ────────────────────────────────
-    print(f"Loading {len(indices):,} SMILES strings for tokenizer training...")
+    # ── Load and canonicalize the selected SMILES strings ───────────────
+    print(f"Loading and canonicalizing {len(indices):,} SMILES strings for tokenizer training...")  # type: ignore
     full_ds = load_dataset(cfg.hf_dataset, split="train")
-    subset = full_ds.select(indices)
-    smiles_list = subset[smiles_col]
+    subset = full_ds.select(indices)  # type: ignore
+    raw_smiles_list = subset[smiles_col]
     del full_ds, subset
 
-    # ── Save corpus.txt ─────────────────────────────────────────────────
-    corpus_path.write_text("\n".join(smiles_list))
-    print(f"Saved corpus ({len(smiles_list):,} SMILES) to {corpus_path}")
+    # Canonicalize the extracted dataset
+    RDLogger.DisableLog("rdApp.*")  # type: ignore
+    canonical_smiles_list = []
 
-    return smiles_list, corpus_path
+    for smi in raw_smiles_list:
+        try:
+            mol = Chem.MolFromSmiles(smi)
+            if mol is not None:
+                canonical_smiles_list.append(Chem.MolToSmiles(mol))
+            else:
+                # Should be unreachable due to index validation, but kept for safety
+                canonical_smiles_list.append(smi)
+        except Exception:
+            canonical_smiles_list.append(smi)
+
+    RDLogger.EnableLog("rdApp.*")  # type: ignore
+
+    # ── Save corpus.txt ─────────────────────────────────────────────────
+    corpus_path.write_text("\n".join(canonical_smiles_list))
+    print(f"Saved canonical corpus ({len(canonical_smiles_list):,} SMILES) to {corpus_path}")
+
+    return canonical_smiles_list, corpus_path
 
 
 def build_word_counts(cfg: DictConfig):
     """
     Build (or load cached) SMILES substructure word counts for PCATT training.
 
-    Splits each SMILES string on structural elements using a regex pattern,
+    Splits each canonical SMILES string on structural elements using a regex pattern,
     then counts occurrences. The result is cached to word_counts.json.
 
     Args:
@@ -112,7 +174,13 @@ def build_word_counts(cfg: DictConfig):
             longest_struct_len: length of the longest substructure seen
     """
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
-    word_counts_path = data_dir / "word_counts.json"
+    pretokenizer = cfg.get("pretokenizer", None)
+    if pretokenizer is None:
+        word_counts_path = data_dir / "word_counts.json"
+    elif pretokenizer in ["atom_split", "structure_split"]:
+        word_counts_path = data_dir / f"{pretokenizer}_word_counts.json"
+    else:
+        raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
 
     # ── Fast path: load from cache ──────────────────────────────────────
     if word_counts_path.exists():
@@ -124,33 +192,52 @@ def build_word_counts(cfg: DictConfig):
         print(f"Loaded {len(word_count):,} unique substructures (longest: {longest_struct_len})")
         return word_count, longest_struct_len
 
-    # ── Slow path: compute from corpus ──────────────────────────────────
+    # ── Slow path: compute from canonical corpus ────────────────────────
     smiles_list, _ = load_pubchem10m_tokenizer_corpus(cfg)
 
-    print(f"Building word counts from {len(smiles_list):,} SMILES strings...")
+    print(f"Building word counts from {len(smiles_list):,} canonical SMILES strings...")
     word_count: dict[str, int] = {}
     longest_struct_len = 0
 
-    for smi in smiles_list:
-        structures = [s for s in re.split(r"(\.|%\d{2}|[\(\)]|[/\\]|\[.*?]|\d)", smi) if s]
-        for struct in structures:
-            if len(struct) > longest_struct_len:
-                longest_struct_len = len(struct)
-            if struct in word_count:
-                word_count[struct] += 1
+    if pretokenizer == None:
+        for smi in smiles_list:
+            if smi in word_count:
+                word_count[smi] += 1
             else:
-                word_count[struct] = 1
+                word_count[smi] = 1
+            if len(smi) > longest_struct_len:
+                longest_struct_len = len(smi)
+    else:
+        if pretokenizer == "atom_split":
+            # https://github.com/datamol-io/safe/blob/main/safe/tokenizer.py#50
+            pattern = r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"
+        elif pretokenizer == "structure_split":
+            # https://github.com/BattModels/smirk/blob/main/src/pre_tokenizers/split_smiles.rs#L40
+            pattern = r"(\.|%\d{2}|[\(\)]|[/\\]|\[.*?]|\d)"
+        else:
+            raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
+
+        for smi in smiles_list:
+            structures = [s for s in re.split(pattern, smi) if s]
+            for struct in structures:
+                if struct in word_count:
+                    word_count[struct] += 1
+                else:
+                    word_count[struct] = 1
+                    if len(struct) > longest_struct_len:
+                        longest_struct_len = len(struct)
 
     # ── Save to disk ────────────────────────────────────────────────────
     cached = {
         "corpus_size": len(smiles_list),
-        "unique_substructures": len(word_count),
-        "longest_struct_len": longest_struct_len,
+        "unique_words": len(word_count),
+        "longest_word_len": longest_struct_len,
         "word_count": word_count,
     }
     with open(word_counts_path, "w") as f:
         json.dump(cached, f)
-    print(f"Saved word counts ({len(word_count):,} unique substructures, "
-          f"longest: {longest_struct_len}) to {word_counts_path}")
+    print(
+        f"Saved word counts ({len(word_count):,} unique words, " f"longest: {longest_struct_len}) to {word_counts_path}"
+    )
 
     return word_count, longest_struct_len

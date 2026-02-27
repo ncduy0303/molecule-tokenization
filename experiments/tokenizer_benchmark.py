@@ -8,13 +8,7 @@ within the research template's Hydra + wandb + Slurm infrastructure.
 Usage (PubChem10M benchmark):
     python -m main +name=smirk_pubchem \
         experiment=tokenizer_benchmark \
-        dataset=pubchem10m \
-        algorithm=smirk_roberta
-
-Usage (QM9):
-    python -m main +name=smirk_qm9 \
-        experiment=tokenizer_benchmark \
-        dataset=qm9 \
+        dataset=pubchem10m_mlm_train \
         algorithm=smirk_roberta
 """
 
@@ -87,10 +81,9 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         dataset_name = self.root_cfg.dataset._name
         if dataset_name not in dataset_registry:
             raise ValueError(
-                f"Dataset '{dataset_name}' not in registry. "
-                f"Available: {list(dataset_registry.keys())}"
+                f"Dataset '{dataset_name}' not in registry. " f"Available: {list(dataset_registry.keys())}"
             )
-        return dataset_registry[dataset_name](self.root_cfg.dataset, self.algo.tokenizer)
+        return dataset_registry[dataset_name](self.root_cfg.dataset, self.algo.tokenizer)  # type: ignore
 
     def training(self):
         """Train a RoBERTa MLM model with the configured tokenizer and dataset."""
@@ -104,8 +97,8 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         if not self.algo:
             self._build_algo()
 
-        tokenizer = self.algo.tokenizer
-        model = self.algo.model
+        tokenizer = self.algo.tokenizer  # type: ignore
+        model = self.algo.model  # type: ignore
 
         print(cyan("Tokenizer:"), type(tokenizer).__name__)
         print(cyan("Vocab size:"), len(tokenizer))
@@ -181,14 +174,14 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         trainer.train()
 
         # Validation eval (final)
-        val_results = trainer.evaluate(eval_dataset=dataset[eval_split])
+        val_results = trainer.evaluate(eval_dataset=dataset[eval_split])  # type: ignore
         val_ppl = math.exp(val_results["eval_loss"])
         print(cyan(f"Final {eval_split} loss:"), f"{val_results['eval_loss']:.4f}")
         print(cyan(f"Final {eval_split} perplexity:"), f"{val_ppl:.2f}")
 
         # Test evaluation (separate split, run once at the very end)
         if has_val and has_test:
-            test_results = trainer.evaluate(eval_dataset=dataset["test"])
+            test_results = trainer.evaluate(eval_dataset=dataset["test"])  # type: ignore
             test_ppl = math.exp(test_results["eval_loss"])
             print(cyan("Test loss:"), f"{test_results['eval_loss']:.4f}")
             print(cyan("Test perplexity:"), f"{test_ppl:.2f}")
@@ -210,8 +203,8 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         if not self.algo:
             self._build_algo()
 
-        tokenizer = self.algo.tokenizer
-        model = self.algo.model
+        tokenizer = self.algo.tokenizer  # type: ignore
+        model = self.algo.model  # type: ignore
 
         print(cyan("Tokenizer:"), type(tokenizer).__name__)
         print(cyan("Vocab size:"), len(tokenizer))
@@ -256,14 +249,14 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
 
         # Evaluate on validation set
         if has_val:
-            val_results = trainer.evaluate(eval_dataset=dataset["validation"], metric_key_prefix="val")
+            val_results = trainer.evaluate(eval_dataset=dataset["validation"], metric_key_prefix="val")  # type: ignore
             val_ppl = math.exp(val_results["val_loss"])
             print(cyan("Val loss:"), f"{val_results['val_loss']:.4f}")
             print(cyan("Val perplexity:"), f"{val_ppl:.2f}")
 
         # Evaluate on test set
         if has_test:
-            test_results = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix="test")
+            test_results = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix="test")  # type: ignore
             test_ppl = math.exp(test_results["test_loss"])
             print(cyan("Test loss:"), f"{test_results['test_loss']:.4f}")
             print(cyan("Test perplexity:"), f"{test_ppl:.2f}")
