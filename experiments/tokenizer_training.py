@@ -341,7 +341,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         tokenizer = GreedTok().train_new_from_counts(
             word_count,
-            vocab_size=vocab_size - 256 + len(special_tokens),  # [DEBUG]
+            vocab_size=vocab_size - 256,
             special_tokens_map=special_tokens,
             min_word_count=min_frequency,
             max_token_length=longest_word_len,
