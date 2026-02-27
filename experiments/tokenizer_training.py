@@ -331,20 +331,20 @@ class TokenizerTrainingExperiment(BaseExperiment):
         }
 
         # Build (or load cached) word counts from the corpus
-        word_count, longest_struct_len = build_word_counts(self.root_cfg.dataset)
+        word_count, longest_word_len = build_word_counts(self.root_cfg.dataset)
 
         print(cyan("Training PCATT (GreedTok) tokenizer..."))
         print(cyan("  Vocab size:"), vocab_size)
         print(cyan("  Min frequency:"), min_frequency)
         print(cyan("  Unique substructures:"), f"{len(word_count):,}")
-        print(cyan("  Longest substructure:"), longest_struct_len)
+        print(cyan("  Longest substructure:"), longest_word_len)
 
         tokenizer = GreedTok().train_new_from_counts(
             word_count,
             vocab_size=vocab_size - 256 + len(special_tokens),  # [DEBUG]
             special_tokens_map=special_tokens,
             min_word_count=min_frequency,
-            max_token_length=longest_struct_len,
+            max_token_length=longest_word_len,
         )
 
         print(cyan("Trained vocab size:"), len(tokenizer))

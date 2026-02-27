@@ -8,8 +8,7 @@ and the canonical SMILES strings are written to data/pubchem10m_tokenizer_train/
 The corpus.txt file can be passed directly to tokenizer training functions
 that accept file paths (e.g. smirk train_gpe).
 
-A word-count dictionary (SMILES substructures split by regex) is also cached
-to data/pubchem10m_tokenizer_train/word_counts.json for PCATT training.
+A word-count dictionary is also cached to data/pubchem10m_tokenizer_train for PCATT training.
 """
 
 import json
@@ -160,7 +159,7 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
 
 def build_word_counts(cfg: DictConfig):
     """
-    Build (or load cached) SMILES substructure word counts for PCATT training.
+    Build (or load cached) SMILES word counts for PCATT training.
 
     Splits each canonical SMILES string on structural elements using a regex pattern,
     then counts occurrences. The result is cached to word_counts.json.
@@ -169,9 +168,9 @@ def build_word_counts(cfg: DictConfig):
         cfg: Dataset config (configurations/dataset/pubchem10m_tokenizer_train.yaml).
 
     Returns:
-        tuple: (word_count, longest_struct_len)
-            word_count: dict mapping substructure string -> count
-            longest_struct_len: length of the longest substructure seen
+        tuple: (word_count, longest_word_len)
+            word_count: dict mapping word to count
+            longest_word_len: length of the longest word seen
     """
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
     pretokenizer = cfg.get("pretokenizer", None)
@@ -188,16 +187,16 @@ def build_word_counts(cfg: DictConfig):
         with open(word_counts_path) as f:
             cached = json.load(f)
         word_count = cached["word_count"]
-        longest_struct_len = cached["longest_struct_len"]
-        print(f"Loaded {len(word_count):,} unique substructures (longest: {longest_struct_len})")
-        return word_count, longest_struct_len
+        longest_word_len = cached["longest_word_len"]
+        print(f"Loaded {len(word_count):,} unique words (longest: {longest_word_len})")
+        return word_count, longest_word_len
 
     # ── Slow path: compute from canonical corpus ────────────────────────
     smiles_list, _ = load_pubchem10m_tokenizer_corpus(cfg)
 
     print(f"Building word counts from {len(smiles_list):,} canonical SMILES strings...")
     word_count: dict[str, int] = {}
-    longest_struct_len = 0
+    longest_word_len = 0
 
     if pretokenizer == None:
         for smi in smiles_list:
@@ -205,8 +204,8 @@ def build_word_counts(cfg: DictConfig):
                 word_count[smi] += 1
             else:
                 word_count[smi] = 1
-            if len(smi) > longest_struct_len:
-                longest_struct_len = len(smi)
+            if len(smi) > longest_word_len:
+                longest_word_len = len(smi)
     else:
         if pretokenizer == "atom_split":
             # https://github.com/datamol-io/safe/blob/main/safe/tokenizer.py#50
@@ -218,26 +217,26 @@ def build_word_counts(cfg: DictConfig):
             raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
 
         for smi in smiles_list:
-            structures = [s for s in re.split(pattern, smi) if s]
-            for struct in structures:
-                if struct in word_count:
-                    word_count[struct] += 1
+            words = [s for s in re.split(pattern, smi) if s]
+            for word in words:
+                if word in word_count:
+                    word_count[word] += 1
                 else:
-                    word_count[struct] = 1
-                    if len(struct) > longest_struct_len:
-                        longest_struct_len = len(struct)
+                    word_count[word] = 1
+                    if len(word) > longest_word_len:
+                        longest_word_len = len(word)
 
     # ── Save to disk ────────────────────────────────────────────────────
     cached = {
         "corpus_size": len(smiles_list),
         "unique_words": len(word_count),
-        "longest_word_len": longest_struct_len,
+        "longest_word_len": longest_word_len,
         "word_count": word_count,
     }
     with open(word_counts_path, "w") as f:
         json.dump(cached, f)
     print(
-        f"Saved word counts ({len(word_count):,} unique words, " f"longest: {longest_struct_len}) to {word_counts_path}"
+        f"Saved word counts ({len(word_count):,} unique words, " f"longest: {longest_word_len}) to {word_counts_path}"
     )
 
-    return word_count, longest_struct_len
+    return word_count, longest_word_len
