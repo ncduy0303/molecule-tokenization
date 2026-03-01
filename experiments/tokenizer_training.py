@@ -89,6 +89,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
     compatible_algorithms = {
         "train_ape": TokenizerTrainer,
         "train_bpe": TokenizerTrainer,
+        "train_spe": TokenizerTrainer,
         "train_smirk": TokenizerTrainer,
         "train_smirk_gpe": TokenizerTrainer,
         "train_pcatt": TokenizerTrainer,
@@ -126,12 +127,14 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_smirk_gpe(corpus_path, algo_cfg)
         elif tok_type == "pcatt":
             self._train_pcatt(corpus, algo_cfg)
+        elif tok_type == "spe":
+            self._train_spe(corpus, corpus_path, algo_cfg)
         elif tok_type == "smirk_pcatt":
             self._train_smirk_pcatt(corpus, algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'ape', 'bpe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt'"
+                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt'"
             )
 
     def _train_ape(self, corpus, algo_cfg):
@@ -470,6 +473,111 @@ class TokenizerTrainingExperiment(BaseExperiment):
             print(f"    -> {tokens}")
             print(f"    -> {len(tokens)} tokens")
 
+    def _train_spe(self, corpus, corpus_path, algo_cfg):
+        """Train a SMILES Pair Encoding (SPE) tokenizer using the SmilesPE library."""
+        from SmilesPE.learner import learn_SPE
+        from SmilesPE.pretokenizer import atomwise_tokenizer
+        from utils.spe_tokenizer import SMILES_SPE_Tokenizer
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+        min_frequency = tok_cfg.min_frequency
+
+        print(cyan("Training SPE tokenizer..."))
+        print(cyan("  Target vocab size:"), vocab_size)
+        print(cyan("  Min frequency:"), min_frequency)
+
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        # ── Step 1: Train SPE merge pairs ───────────────────────────────
+        spe_file = str(save_dir / "spe_voc.txt")
+        print(cyan("  Training SPE merge pairs..."))
+        learn_SPE(
+            infile=str(corpus_path),
+            outfile=spe_file,
+            num_symbols=vocab_size,
+            min_frequency=min_frequency,
+            augmentation=0,
+            total_symbols=True,
+            verbose=True,
+        )
+
+        # ── Step 2: Collect unique atom-level tokens from the corpus ────
+        print(cyan("  Collecting atom-level tokens..."))
+        atom_tokens: set[str] = set()
+        for smi in corpus:
+            atom_tokens.update(atomwise_tokenizer(smi))
+        atom_tokens_sorted = sorted(atom_tokens)
+        print(cyan("  Unique atom tokens:"), len(atom_tokens_sorted))
+
+        # ── Step 3: Collect SPE merge tokens ────────────────────────────
+        print(cyan("  Collecting SPE merge tokens..."))
+        spe_tokens: list[str] = []
+        with open(spe_file, "r") as f:
+            for line in f:
+                pair = line.strip()
+                if pair:
+                    # The SPE file has space-separated pairs; the merged token
+                    # is the concatenation of the two parts.
+                    merged = "".join(pair.split()[:2])
+                    spe_tokens.append(merged)
+        print(cyan("  SPE merge tokens:"), len(spe_tokens))
+
+        # ── Step 4: Build complete vocabulary ───────────────────────────
+        special_tokens = [
+            tok_cfg.bos_token,
+            tok_cfg.pad_token,
+            tok_cfg.eos_token,
+            tok_cfg.unk_token,
+            tok_cfg.cls_token,
+            tok_cfg.sep_token,
+            tok_cfg.mask_token,
+        ]
+
+        # Order: special tokens -> atom tokens -> SPE merged tokens
+        all_tokens = list(special_tokens)
+        seen = set(all_tokens)
+        for tok in atom_tokens_sorted:
+            if tok not in seen:
+                all_tokens.append(tok)
+                seen.add(tok)
+        for tok in spe_tokens:
+            if tok not in seen:
+                all_tokens.append(tok)
+                seen.add(tok)
+
+        vocab_file = str(save_dir / "vocab.txt")
+        with open(vocab_file, "w", encoding="utf-8") as f:
+            for tok in all_tokens:
+                f.write(tok + "\n")
+
+        print(cyan("  Total vocab size:"), len(all_tokens))
+
+        # ── Step 5: Create and save the tokenizer ───────────────────────
+        tokenizer = SMILES_SPE_Tokenizer(
+            vocab_file=vocab_file,
+            spe_file=spe_file,
+            unk_token=tok_cfg.unk_token,
+            sep_token=tok_cfg.sep_token,
+            pad_token=tok_cfg.pad_token,
+            cls_token=tok_cfg.cls_token,
+            mask_token=tok_cfg.mask_token,
+            bos_token=tok_cfg.bos_token,
+            eos_token=tok_cfg.eos_token,
+        )
+        tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # Print some example tokenizations
+        examples = corpus[:5]
+        print(cyan("\nExample tokenizations:"))
+        for smi in examples:
+            tokens = tokenizer.tokenize(smi)
+            print(f"  {smi}")
+            print(f"    -> {tokens}")
+            print(f"    -> {len(tokens)} tokens")
+
     def _train_smirk_pcatt(self, corpus, algo_cfg):
         """Train a Smirk-PCATT (GreedTok) tokenizer.
 
@@ -539,7 +647,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
             pcatt_input = adapter.encode_for_pcatt(smirk_tokens)
             tokens = tokenizer.tokenize(pcatt_input)  # type: ignore
             # Decode byte tokens back to Smirk glyphs for readability
-            decoded_tokens = ["".join(adapter.decode_from_pcatt(t)) for t in tokens]
+            decoded_tokens = ["".join(adapter.decode_from_pcatt(t)) for t in tokens]  # type: ignore
             print(f"  {smi}")
             print(f"    -> Smirk: {smirk_tokens}")
             print(f"    -> Smirk-PCATT: {decoded_tokens}")

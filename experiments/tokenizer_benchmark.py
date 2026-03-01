@@ -44,6 +44,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         "smirk_pcatt_roberta": MoleculeMLMAlgo,
         "ape_roberta": MoleculeMLMAlgo,
         "bpe_roberta": MoleculeMLMAlgo,
+        "spe_roberta": MoleculeMLMAlgo,
         "ape_roberta_pretrained": MoleculeMLMAlgo,
         "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }
@@ -97,6 +98,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
 
         class NaNStopCallback(TrainerCallback):
             """Custom callback to stop training if NaN loss is detected."""
+
             def on_log(self, args, state, control, logs=None, **kwargs):
                 if logs and math.isnan(logs.get("loss", 0)):
                     print("NaN loss detected — stopping training.")

@@ -36,9 +36,7 @@ class MoleculeClassificationAlgo:
         elif tok_type == "auto":
             from transformers import AutoTokenizer
 
-            tokenizer = AutoTokenizer.from_pretrained(
-                tok_cfg.pretrained, trust_remote_code=True
-            )
+            tokenizer = AutoTokenizer.from_pretrained(tok_cfg.pretrained, trust_remote_code=True)
         elif tok_type == "ape":
             from apetokenizer.ape_tokenizer import APETokenizer
 
@@ -48,6 +46,10 @@ class MoleculeClassificationAlgo:
             from pcatt.hf.greedtok import GreedTok
 
             tokenizer = GreedTok.from_pretrained(tok_cfg.pretrained)
+        elif tok_type == "spe":
+            from utils.spe_tokenizer import SMILES_SPE_Tokenizer
+
+            tokenizer = SMILES_SPE_Tokenizer.from_pretrained(tok_cfg.pretrained)
         elif tok_type == "smirk_pcatt":
             from utils.smirk_pcatt_tokenizer import SmirkPCATTTokenizer
 
@@ -55,12 +57,12 @@ class MoleculeClassificationAlgo:
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto', 'ape', 'pcatt'."
+                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)
         if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token or "[PAD]"
+            tokenizer.pad_token = tokenizer.eos_token or "[PAD]" # type: ignore
 
         return tokenizer
 

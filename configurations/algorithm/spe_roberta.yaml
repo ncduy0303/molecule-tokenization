@@ -1,0 +1,6 @@
+defaults:
+  - base_roberta
+
+tokenizer:
+  type: spe
+  pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SPE_5K
