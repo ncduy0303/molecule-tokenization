@@ -5,6 +5,6 @@ name: pubchem10m_tokenizer_train
 hf_dataset: "mikemayuare/PubChem10M_SMILES_SELFIES"
 data_dir: "data/pubchem10m_tokenizer_train"
 smiles_column: "SMILES"
-pretokenizer: "structure_split" # Options: "atom_split", "structure_split", None
+# pretokenizer: "structure_split" # Options: "atom_split", "structure_split", None
 corpus_size: 2000000
 seed: 42

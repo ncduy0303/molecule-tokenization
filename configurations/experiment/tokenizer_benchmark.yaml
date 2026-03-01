@@ -8,12 +8,12 @@ training:
   per_device_eval_batch_size: 64
   num_train_epochs: 20
   learning_rate: 5.0e-5
-  warmup_steps: 1000
+  warmup_ratio: 0.1
   weight_decay: 0.01
   lr_scheduler_type: "linear"
   adam_beta1: 0.9
-  adam_beta2: 0.999
-  adam_epsilon: 1.0e-8
+  adam_beta2: 0.98
+  adam_epsilon: 1.0e-6
   max_grad_norm: 1.0
   mlm_probability: 0.15
   fp16: false

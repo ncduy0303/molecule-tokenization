@@ -278,7 +278,6 @@ class TokenizerTrainingExperiment(BaseExperiment):
         min_frequency = tok_cfg.min_frequency
         merge_brackets = tok_cfg.merge_brackets
         split_structure = tok_cfg.split_structure
-        base_tokenizer_file = tok_cfg.tokenizer_file
 
         print(cyan("Training Smirk-GPE tokenizer..."))
         print(cyan("  Vocab size:"), vocab_size)
@@ -286,11 +285,14 @@ class TokenizerTrainingExperiment(BaseExperiment):
         print(cyan("  Merge brackets:"), merge_brackets)
         print(cyan("  Split structure:"), split_structure)
 
+        # [TODO]: why -4 for SGPE/+1 for GPE to reach len(tokenizer) == vocab_size?
+        offset = -4 if split_structure else +1
+
         tokenizer = train_gpe(
             files=[str(corpus_path)],
-            ref=SmirkTokenizerFast(base_tokenizer_file),
+            ref=SmirkTokenizerFast(),
             min_frequency=min_frequency,
-            vocab_size=vocab_size,
+            vocab_size=vocab_size - len(SmirkTokenizerFast().special_tokens_map) + offset,
             merge_brackets=merge_brackets,
             split_structure=split_structure,
         )

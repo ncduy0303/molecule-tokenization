@@ -90,8 +90,16 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         from transformers import (
             Trainer,
             TrainingArguments,
+            TrainerCallback,
             DataCollatorForLanguageModeling,
         )
+
+        class NaNStopCallback(TrainerCallback):
+            """Custom callback to stop training if NaN loss is detected."""
+            def on_log(self, args, state, control, logs=None, **kwargs):
+                if logs and math.isnan(logs.get("loss", 0)):
+                    print("NaN loss detected — stopping training.")
+                    control.should_training_stop = True
 
         # Build tokenizer + model via the algorithm config
         if not self.algo:
@@ -133,7 +141,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             per_device_eval_batch_size=t.per_device_eval_batch_size,
             num_train_epochs=t.num_train_epochs,
             learning_rate=t.learning_rate,
-            warmup_steps=t.warmup_steps,
+            warmup_ratio=t.warmup_ratio,
             weight_decay=t.weight_decay,
             lr_scheduler_type=t.lr_scheduler_type,
             adam_beta1=t.adam_beta1,
@@ -169,6 +177,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             eval_dataset=dataset[eval_split],
             processing_class=tokenizer,
             data_collator=data_collator,
+            callbacks=[NaNStopCallback()],
         )
 
         trainer.train()

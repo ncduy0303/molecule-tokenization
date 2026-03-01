@@ -7,7 +7,7 @@ PARTITION="long"
 # Targeting the specific xcnf node range for AMD EPYC 7763
 NODELIST="xcnf[0-25]"
 CPUS=16               # Increased slightly as EPYC has 64 cores per node
-MEM="128G"            # Increased; these nodes have 1TB available
+MEM="512G"            # Increased; these nodes have 1TB available
 TIME="3-00:00:00"     # +400 for jobs 5 hrs or less; +200 for jobs 1 day or less
 # ----------------------------------
 
