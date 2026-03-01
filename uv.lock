@@ -857,7 +857,7 @@ wheels = [
 [[package]]
 name = "greedtok"
 version = "0.14"
-source = { git = "https://github.com/ncduy0303/pcatt#66c5cd583e1340938185df034ae0de148927ed79" }
+source = { git = "https://github.com/ncduy0303/pcatt#8b08898d0274aa03d7cd081cfbcc4b3218eaffc1" }
 dependencies = [
     { name = "transformers" },
 ]

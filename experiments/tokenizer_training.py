@@ -22,6 +22,7 @@ from experiments.exp_base import BaseExperiment
 from datamodules.molecule_datasets.pubchem10m_tokenizer_train import (
     load_pubchem10m_tokenizer_corpus,
     build_word_counts,
+    build_smirk_pcatt_word_counts,
 )
 
 from utils.print_utils import cyan
@@ -91,6 +92,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         "train_smirk": TokenizerTrainer,
         "train_smirk_gpe": TokenizerTrainer,
         "train_pcatt": TokenizerTrainer,
+        "train_smirk_pcatt": TokenizerTrainer,
     }
 
     def __init__(
@@ -124,10 +126,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_smirk_gpe(corpus_path, algo_cfg)
         elif tok_type == "pcatt":
             self._train_pcatt(corpus, algo_cfg)
+        elif tok_type == "smirk_pcatt":
+            self._train_smirk_pcatt(corpus, algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'ape', 'bpe', 'smirk', 'smirk_gpe', 'pcatt'"
+                "Supported: 'ape', 'bpe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt'"
             )
 
     def _train_ape(self, corpus, algo_cfg):
@@ -465,3 +469,76 @@ class TokenizerTrainingExperiment(BaseExperiment):
             print(f"  {smi}")
             print(f"    -> {tokens}")
             print(f"    -> {len(tokens)} tokens")
+
+    def _train_smirk_pcatt(self, corpus, algo_cfg):
+        """Train a Smirk-PCATT (GreedTok) tokenizer.
+
+        Uses the Smirk tokenizer for pre-tokenization, maps glyphs to bytes
+        via SmirkPCATTAdapter, then trains a GreedTok tokenizer on the
+        byte-encoded word counts. Supports the structure_split pretokenizer.
+        """
+        from pcatt.hf.greedtok import GreedTok
+        from smirk import SmirkTokenizerFast
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+        min_frequency = tok_cfg.min_frequency
+
+        special_tokens = {
+            "bos_token": tok_cfg.bos_token,
+            "pad_token": tok_cfg.pad_token,
+            "eos_token": tok_cfg.eos_token,
+            "unk_token": tok_cfg.unk_token,
+            "cls_token": tok_cfg.cls_token,
+            "sep_token": tok_cfg.sep_token,
+            "mask_token": tok_cfg.mask_token,
+        }
+
+        # Build (or load cached) Smirk-adapted byte-level word counts
+        word_count, longest_word_len, adapter = build_smirk_pcatt_word_counts(
+            self.root_cfg.dataset
+        )
+
+        pretokenizer = self.root_cfg.dataset.get("pretokenizer", None)
+
+        print(cyan("Training Smirk-PCATT (GreedTok) tokenizer..."))
+        print(cyan("  Vocab size:"), vocab_size)
+        print(cyan("  Min frequency:"), min_frequency)
+        print(cyan("  Pre-tokenizer:"), pretokenizer)
+        print(cyan("  Unique substructures:"), f"{len(word_count):,}")
+        print(cyan("  Longest substructure:"), longest_word_len)
+
+        tokenizer = GreedTok().train_new_from_counts(
+            word_count,
+            vocab_size=vocab_size - 256,
+            special_tokens_map=special_tokens,
+            min_word_count=min_frequency,
+            max_token_length=longest_word_len,
+        )
+
+        print(cyan("Trained vocab size:"), len(tokenizer))  # type: ignore
+
+        # Save tokenizer
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(str(save_dir))  # type: ignore
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # Print some example tokenizations
+        smirk_tokenizer = SmirkTokenizerFast()
+        corpus, _ = load_pubchem10m_tokenizer_corpus(self.root_cfg.dataset)
+        examples = corpus[:5]
+        print(cyan("\nExample tokenizations:"))
+        for smi in examples:
+            # Encode via Smirk + adapter, then tokenize with the trained PCATT
+            smirk_tokens = smirk_tokenizer.tokenize(smi)
+            pcatt_input = adapter.encode_for_pcatt(smirk_tokens)
+            tokens = tokenizer.tokenize(pcatt_input)  # type: ignore
+            # Decode byte tokens back to Smirk glyphs for readability
+            decoded_tokens = [
+                "".join(adapter.decode_from_pcatt(t)) for t in tokens
+            ]
+            print(f"  {smi}")
+            print(f"    -> Smirk: {smirk_tokens}")
+            print(f"    -> Smirk-PCATT: {decoded_tokens}")
+            print(f"    -> {len(decoded_tokens)} tokens")
