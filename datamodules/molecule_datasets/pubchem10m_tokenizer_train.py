@@ -202,7 +202,14 @@ def build_word_counts(cfg: DictConfig):
         words = [smi]
         if pretokenizer == "atom_split":
             # https://github.com/datamol-io/safe/blob/main/safe/tokenizer.py#50
-            words = [s for s in re.findall(r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])", smi) if s]
+            words = [
+                s
+                for s in re.findall(
+                    r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])",
+                    smi,
+                )
+                if s
+            ]
         elif pretokenizer == "structure_split":
             # https://github.com/BattModels/smirk/blob/main/src/pre_tokenizers/split_smiles.rs#L40
             words = [s for s in re.split(r"(\.|%\d{2}|[\(\)]|[/\\]|\[.*?]|\d)", smi) if s]
@@ -263,14 +270,7 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
 
     # ── Build the Smirk tokenizer and adapter ───────────────────────────
     smirk_tokenizer = SmirkTokenizerFast()
-    special_tokens = {
-        "[BOS]", "[PAD]", "[EOS]", "[UNK]", "[CLS]", "[SEP]", "[MASK]",
-    }
-    smirk_vocab = [
-        token
-        for token, _ in sorted(smirk_tokenizer.get_vocab().items(), key=lambda item: item[1])
-        if token not in special_tokens
-    ]
+    smirk_vocab = [token for token, _ in sorted(smirk_tokenizer.get_vocab().items(), key=lambda item: item[1])]
     adapter = SmirkPCATTAdapter(smirk_vocab)
 
     # ── Fast path: load from cache ──────────────────────────────────────
@@ -279,9 +279,7 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
         with open(word_counts_path) as f:
             cached = json.load(f)
         # Restore bytes keys from latin-1 encoded strings
-        word_count: dict[bytes, int] = {
-            k.encode("latin-1"): v for k, v in cached["word_count"].items()
-        }
+        word_count: dict[bytes, int] = {k.encode("latin-1"): v for k, v in cached["word_count"].items()}
         longest_word_len = cached["longest_word_len"]
         print(f"Loaded {len(word_count):,} unique words (longest: {longest_word_len})")
         return word_count, longest_word_len, adapter
@@ -297,10 +295,18 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
         parts = [smi]
         if pretokenizer == "atom_split":
             # https://github.com/datamol-io/safe/blob/main/safe/tokenizer.py#50
-            words = [s for s in re.findall(r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])", smi) if s]
+            parts = [
+                s
+                for s in re.findall(
+                    r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])",
+                    smi,
+                )
+                if s
+            ]
         elif pretokenizer == "structure_split":
             # https://github.com/BattModels/smirk/blob/main/src/pre_tokenizers/split_smiles.rs#L40
-            words = [s for s in re.split(r"(\.|%\d{2}|[\(\)]|[/\\]|\[.*?]|\d)", smi) if s]
+            parts = [s for s in re.split(r"(\.|%\d{2}|[\(\)]|[/\\]|\[.*?]|\d)", smi) if s]
+
         for part in parts:
             smirk_tokens = smirk_tokenizer.tokenize(part)
             encoded = adapter.encode_for_pcatt(smirk_tokens)

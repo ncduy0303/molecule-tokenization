@@ -47,6 +47,10 @@ class MoleculeMLMAlgo:
             from pcatt.hf.greedtok import GreedTok
 
             tokenizer = GreedTok.from_pretrained(tok_cfg.pretrained)
+        elif tok_type == "smirk_pcatt":
+            from utils.smirk_pcatt_tokenizer import SmirkPCATTTokenizer
+
+            tokenizer = SmirkPCATTTokenizer.from_pretrained(tok_cfg.pretrained)
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "

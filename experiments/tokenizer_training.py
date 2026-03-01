@@ -495,9 +495,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         }
 
         # Build (or load cached) Smirk-adapted byte-level word counts
-        word_count, longest_word_len, adapter = build_smirk_pcatt_word_counts(
-            self.root_cfg.dataset
-        )
+        word_count, longest_word_len, adapter = build_smirk_pcatt_word_counts(self.root_cfg.dataset)
 
         pretokenizer = self.root_cfg.dataset.get("pretokenizer", None)
 
@@ -522,6 +520,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
         save_dir = self.output_dir / "tokenizer"
         save_dir.mkdir(parents=True, exist_ok=True)
         tokenizer.save_pretrained(str(save_dir))  # type: ignore
+
+        # Save adapter metadata so SmirkPCATTTokenizer.from_pretrained works
+        meta = {"smirk_vocab": adapter.smirk_vocab}
+        with open(save_dir / "smirk_pcatt_meta.json", "w") as f:
+            json.dump(meta, f)
+
         print(cyan("Saved tokenizer to:"), save_dir)
 
         # Print some example tokenizations
@@ -535,9 +539,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
             pcatt_input = adapter.encode_for_pcatt(smirk_tokens)
             tokens = tokenizer.tokenize(pcatt_input)  # type: ignore
             # Decode byte tokens back to Smirk glyphs for readability
-            decoded_tokens = [
-                "".join(adapter.decode_from_pcatt(t)) for t in tokens
-            ]
+            decoded_tokens = ["".join(adapter.decode_from_pcatt(t)) for t in tokens]
             print(f"  {smi}")
             print(f"    -> Smirk: {smirk_tokens}")
             print(f"    -> Smirk-PCATT: {decoded_tokens}")

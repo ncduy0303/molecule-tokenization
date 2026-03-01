@@ -63,6 +63,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
         "bpe_classifier": MoleculeClassificationAlgo,
         "pcatt_classifier": MoleculeClassificationAlgo,
         "smirk_classifier": MoleculeClassificationAlgo,
+        "smirk_pcatt_classifier": MoleculeClassificationAlgo,
         "ape_classifier_pretrained_hiv": MoleculeClassificationAlgo,
         "bpe_classifier_pretrained_hiv": MoleculeClassificationAlgo,
     }
@@ -164,6 +165,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
 
         # ── Custom data collator for classification ─────────────────────
         from transformers import DataCollatorWithPadding
+
         base_collator = DataCollatorWithPadding(tokenizer, return_tensors="pt")
 
         def collate_fn(features):
@@ -201,9 +203,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
         print(cyan("Val loss:"), f"{val_results['eval_loss']:.4f}")
 
         # ── Test evaluation ─────────────────────────────────────────────
-        test_results = trainer.evaluate(
-            eval_dataset=dataset["test"], metric_key_prefix="test"
-        )
+        test_results = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix="test")
         print(cyan("Test ROC-AUC:"), f"{test_results.get('test_roc_auc', 0):.4f}")
         print(cyan("Test loss:"), f"{test_results['test_loss']:.4f}")
 
@@ -237,6 +237,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
         )
 
         from transformers import DataCollatorWithPadding
+
         base_collator = DataCollatorWithPadding(tokenizer, return_tensors="pt")
 
         def collate_fn(features):
@@ -255,12 +256,8 @@ class DownstreamClassificationExperiment(BaseExperiment):
             compute_metrics=_compute_roc_auc,
         )
 
-        val_results = trainer.evaluate(
-            eval_dataset=dataset["validation"], metric_key_prefix="val"
-        )
+        val_results = trainer.evaluate(eval_dataset=dataset["validation"], metric_key_prefix="val")
         print(cyan("Val ROC-AUC:"), f"{val_results.get('val_roc_auc', 0):.4f}")
 
-        test_results = trainer.evaluate(
-            eval_dataset=dataset["test"], metric_key_prefix="test"
-        )
+        test_results = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix="test")
         print(cyan("Test ROC-AUC:"), f"{test_results.get('test_roc_auc', 0):.4f}")
