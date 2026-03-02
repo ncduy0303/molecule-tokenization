@@ -14,6 +14,7 @@ Usage:
 
 import safe
 from typing import List
+from rdkit import Chem
 
 
 def encode_safe(smiles: str, slicer: str = "brics") -> str:
@@ -21,7 +22,8 @@ def encode_safe(smiles: str, slicer: str = "brics") -> str:
     Convert a SMILES string to its SAFE representation.
 
     If encoding fails (e.g. the molecule cannot be fragmented),
-    the original SMILES is returned unchanged.
+    the original SMILES is canonicalized and returned instead;
+    if that also fails, the original SMILES is returned as-is.
 
     Args:
         smiles: Canonical SMILES string.
@@ -33,6 +35,13 @@ def encode_safe(smiles: str, slicer: str = "brics") -> str:
     try:
         return safe.encode(smiles, canonical=True, slicer=slicer)
     except (safe.SAFEEncodeError, safe.SAFEFragmentationError):
+        try:
+            # If SAFE encoding fails, at least return a canonical SMILES
+            mol = Chem.MolFromSmiles(smiles)
+            if mol is not None:
+                return Chem.MolToSmiles(mol)
+        except Exception:
+            pass  # If canonicalization also fails, return original SMILES
         return smiles
 
 
