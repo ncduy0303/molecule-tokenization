@@ -133,67 +133,91 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
 
         del full_ds  # free memory before re-selecting
 
-    # ── Step 2: Load only the selected rows ─────────────────────────────
-    print("Loading PubChem10M subset splits...")
-    full_ds = load_dataset(cfg.hf_dataset, split="train")
-
-    splits = DatasetDict(
-        {
-            "train": full_ds.select(train_indices),  # type: ignore
-            "validation": full_ds.select(val_indices),  # type: ignore
-            "test": full_ds.select(test_indices),  # type: ignore
-        }
-    )
-    del full_ds
-
-    # Keep only the SMILES column
-    cols_to_remove = [c for c in splits["train"].column_names if c != smiles_col]
-    if cols_to_remove:
-        splits = splits.remove_columns(cols_to_remove)
-
-    # ── Step 2a: Canonicalize SMILES with RDKit ────────────────────────
-    # Disable RDKit warnings just in case
-    RDLogger.DisableLog("rdApp.*")  # type: ignore
-
-    def canonicalize_batch(examples):
-        canon_smiles = []
-        for smi in examples[smiles_col]:
-            try:
-                mol = Chem.MolFromSmiles(smi)
-                if mol is not None:
-                    # MolToSmiles defaults to canonical=True
-                    canon_smiles.append(Chem.MolToSmiles(mol))
-                else:
-                    # Unreachable because we validated indices in Step 1,
-                    # but kept for fallback safety.
-                    canon_smiles.append(smi)
-            except Exception:
-                canon_smiles.append(smi)
-        return {smiles_col: canon_smiles}
-
-    splits = splits.map(
-        canonicalize_batch,
-        batched=True,
-        desc="Canonicalizing with RDKit",
-    )
-
-    # Re-enable RDKit logging
-    RDLogger.EnableLog("rdApp.*")  # type: ignore
-
-    # ── Step 2b: Optionally convert SMILES to SAFE strings ─────────────
+    # ── Step 2: Load canonicalized (and optionally SAFE-encoded) SMILES ──
+    # Cache canonical SMILES per split so we never re-download / re-canonicalize.
     use_safe = cfg.get("use_safe", False)
-    if use_safe:
-        safe_slicer = cfg.get("safe_slicer", "brics")
-        print(f"Encoding SMILES to SAFE (slicer={safe_slicer})...")
+    safe_slicer = cfg.get("safe_slicer", "brics")
+    prefix = f"canon_safe" if use_safe else "canon_smiles"
+    cache_paths = {split: data_dir / f"{prefix}_{split}.txt" for split in ("train", "validation", "test")}
+    all_cached = all(p.exists() for p in cache_paths.values())
 
-        def safe_encode_batch(examples):
-            return {smiles_col: encode_safe_batch(examples[smiles_col], slicer=safe_slicer)}
+    if all_cached:
+        # ── Fast path: load processed SMILES from text files ────────────
+        from datasets import Dataset, DatasetDict
 
-        splits = splits.map(
-            safe_encode_batch,
-            batched=True,
-            desc="Encoding SMILES to SAFE",
+        label = "SAFE" if use_safe else "SMILES"
+        print(f"Loading cached {label} strings from {data_dir}...")
+        split_smiles: dict[str, list[str]] = {}
+        for split, path in cache_paths.items():
+            lines = path.read_text().splitlines()
+            split_smiles[split] = lines
+            print(f"  {split}: {len(lines):,} {label} strings")
+
+        # Build a DatasetDict with just the SMILES column (tokenized below)
+        splits = DatasetDict(
+            {split: Dataset.from_dict({smiles_col: smiles_list}) for split, smiles_list in split_smiles.items()}
         )
+    else:
+        # ── Slow path: download, canonicalize, optionally SAFE-encode ───
+        print("Loading PubChem10M subset splits...")
+        full_ds = load_dataset(cfg.hf_dataset, split="train")
+
+        splits = DatasetDict(
+            {
+                "train": full_ds.select(train_indices),  # type: ignore
+                "validation": full_ds.select(val_indices),  # type: ignore
+                "test": full_ds.select(test_indices),  # type: ignore
+            }
+        )
+        del full_ds
+
+        # Keep only the SMILES column
+        cols_to_remove = [c for c in splits["train"].column_names if c != smiles_col]
+        if cols_to_remove:
+            splits = splits.remove_columns(cols_to_remove)
+
+        if use_safe:
+            # ── Step 2a: SAFE encode (produces canonical output directly) ─
+            print(f"Encoding SMILES to SAFE (slicer={safe_slicer})...")
+
+            def safe_encode_batch_fn(examples):
+                return {smiles_col: encode_safe_batch(examples[smiles_col], slicer=safe_slicer)}
+
+            splits = splits.map(
+                safe_encode_batch_fn,
+                batched=True,
+                desc="Encoding SMILES to SAFE",
+            )
+        else:
+            # ── Step 2a: Canonicalize SMILES with RDKit ─────────────────
+            RDLogger.DisableLog("rdApp.*")  # type: ignore
+
+            def canonicalize_batch(examples):
+                canon_smiles = []
+                for smi in examples[smiles_col]:
+                    try:
+                        mol = Chem.MolFromSmiles(smi)
+                        if mol is not None:
+                            canon_smiles.append(Chem.MolToSmiles(mol))
+                        else:
+                            canon_smiles.append(smi)
+                    except Exception:
+                        canon_smiles.append(smi)
+                return {smiles_col: canon_smiles}
+
+            splits = splits.map(
+                canonicalize_batch,
+                batched=True,
+                desc="Canonicalizing with RDKit",
+            )
+
+            RDLogger.EnableLog("rdApp.*")  # type: ignore
+
+        # Cache processed SMILES/SAFE strings to disk
+        for split in ("train", "validation", "test"):
+            cache_paths[split].write_text("\n".join(splits[split][smiles_col]))
+        label = "SAFE" if use_safe else "SMILES"
+        print(f"Cached {label} strings to {data_dir}/{prefix}_*.txt")
 
     # ── Step 3: Tokenize ────────────────────────────────────────────────
     from apetokenizer.ape_tokenizer import APETokenizer

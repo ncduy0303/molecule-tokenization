@@ -133,42 +133,40 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         print(f"Saved fixed tokenizer-training indices ({corpus_size:,} valid molecules) to {indices_path}")
         del full_ds
 
-    # ── Load and canonicalize the selected SMILES strings ───────────────
-    print(f"Loading and canonicalizing {len(indices):,} SMILES strings for tokenizer training...")  # type: ignore
+    # ── Load the selected SMILES strings ────────────────────────────────
+    print(f"Loading {len(indices):,} SMILES strings for tokenizer training...")  # type: ignore
     full_ds = load_dataset(cfg.hf_dataset, split="train")
     subset = full_ds.select(indices)  # type: ignore
     raw_smiles_list = subset[smiles_col]
     del full_ds, subset
 
-    # Canonicalize the extracted dataset
-    RDLogger.DisableLog("rdApp.*")  # type: ignore
-    canonical_smiles_list = []
-
-    for smi in raw_smiles_list:
-        try:
-            mol = Chem.MolFromSmiles(smi)
-            if mol is not None:
-                canonical_smiles_list.append(Chem.MolToSmiles(mol))
-            else:
-                # Should be unreachable due to index validation, but kept for safety
-                canonical_smiles_list.append(smi)
-        except Exception:
-            canonical_smiles_list.append(smi)
-
-    RDLogger.EnableLog("rdApp.*")  # type: ignore
-
-    # ── Optionally convert to SAFE strings ──────────────────────────────
     if use_safe:
-        print(f"Encoding {len(canonical_smiles_list):,} SMILES to SAFE (slicer={safe_slicer})...")
-        canonical_smiles_list = encode_safe_batch(canonical_smiles_list, slicer=safe_slicer)
-        print(f"SAFE encoding complete")
+        # SAFE encoding produces canonical output directly — no RDKit step needed
+        print(f"Encoding {len(raw_smiles_list):,} SMILES to SAFE (slicer={safe_slicer})...")
+        processed_list = encode_safe_batch(raw_smiles_list, slicer=safe_slicer)
+        print("SAFE encoding complete")
+    else:
+        # Canonicalize with RDKit
+        print(f"Canonicalizing {len(raw_smiles_list):,} SMILES strings...")
+        RDLogger.DisableLog("rdApp.*")  # type: ignore
+        processed_list = []
+        for smi in raw_smiles_list:
+            try:
+                mol = Chem.MolFromSmiles(smi)
+                if mol is not None:
+                    processed_list.append(Chem.MolToSmiles(mol))
+                else:
+                    processed_list.append(smi)
+            except Exception:
+                processed_list.append(smi)
+        RDLogger.EnableLog("rdApp.*")  # type: ignore
 
-    # ── Save corpus.txt ─────────────────────────────────────────────────
-    corpus_path.write_text("\n".join(canonical_smiles_list))
+    # ── Save corpus ─────────────────────────────────────────────────────
+    corpus_path.write_text("\n".join(processed_list))
     label = "SAFE" if use_safe else "SMILES"
-    print(f"Saved canonical corpus ({len(canonical_smiles_list):,} {label}) to {corpus_path}")
+    print(f"Saved canonical corpus ({len(processed_list):,} {label}) to {corpus_path}")
 
-    return canonical_smiles_list, corpus_path
+    return processed_list, corpus_path
 
 
 def build_word_counts(cfg: DictConfig):
