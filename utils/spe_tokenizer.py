@@ -75,17 +75,6 @@ class SMILES_SPE_Tokenizer(PreTrainedTokenizer):
         eos_token: str = "[EOS]",
         **kwargs,
     ):
-        super().__init__(
-            unk_token=unk_token,
-            sep_token=sep_token,
-            pad_token=pad_token,
-            cls_token=cls_token,
-            mask_token=mask_token,
-            bos_token=bos_token,
-            eos_token=eos_token,
-            **kwargs,
-        )
-
         if not os.path.isfile(vocab_file):
             raise ValueError("Can't find a vocabulary file at path '{}'.".format(vocab_file))
         if not os.path.isfile(spe_file):
@@ -96,6 +85,17 @@ class SMILES_SPE_Tokenizer(PreTrainedTokenizer):
         self.spe_vocab = codecs.open(spe_file)
         self.ids_to_tokens = collections.OrderedDict([(ids, tok) for tok, ids in self.vocab.items()])
         self.spe_tokenizer = SPE_Tokenizer(self.spe_vocab)
+
+        super().__init__(
+            unk_token=unk_token,
+            sep_token=sep_token,
+            pad_token=pad_token,
+            cls_token=cls_token,
+            mask_token=mask_token,
+            bos_token=bos_token,
+            eos_token=eos_token,
+            **kwargs,
+        )
 
     @property
     def vocab_size(self) -> int:

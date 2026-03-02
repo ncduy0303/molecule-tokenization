@@ -128,7 +128,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         elif tok_type == "pcatt":
             self._train_pcatt(corpus, algo_cfg)
         elif tok_type == "spe":
-            self._train_spe(corpus, corpus_path, algo_cfg)
+            self._train_spe(corpus, algo_cfg)
         elif tok_type == "smirk_pcatt":
             self._train_smirk_pcatt(corpus, algo_cfg)
         else:
@@ -473,8 +473,9 @@ class TokenizerTrainingExperiment(BaseExperiment):
             print(f"    -> {tokens}")
             print(f"    -> {len(tokens)} tokens")
 
-    def _train_spe(self, corpus, corpus_path, algo_cfg):
+    def _train_spe(self, corpus, algo_cfg):
         """Train a SMILES Pair Encoding (SPE) tokenizer using the SmilesPE library."""
+        import codecs
         from SmilesPE.learner import learn_SPE
         from SmilesPE.pretokenizer import atomwise_tokenizer
         from utils.spe_tokenizer import SMILES_SPE_Tokenizer
@@ -482,6 +483,16 @@ class TokenizerTrainingExperiment(BaseExperiment):
         tok_cfg = algo_cfg.tokenizer
         vocab_size = tok_cfg.vocab_size
         min_frequency = tok_cfg.min_frequency
+
+        special_tokens = [
+            tok_cfg.bos_token,
+            tok_cfg.pad_token,
+            tok_cfg.eos_token,
+            tok_cfg.unk_token,
+            tok_cfg.cls_token,
+            tok_cfg.sep_token,
+            tok_cfg.mask_token,
+        ]
 
         print(cyan("Training SPE tokenizer..."))
         print(cyan("  Target vocab size:"), vocab_size)
@@ -494,9 +505,9 @@ class TokenizerTrainingExperiment(BaseExperiment):
         spe_file = str(save_dir / "spe_voc.txt")
         print(cyan("  Training SPE merge pairs..."))
         learn_SPE(
-            infile=str(corpus_path),
-            outfile=spe_file,
-            num_symbols=vocab_size,
+            infile=corpus,
+            outfile=codecs.open(spe_file, "w"),
+            num_symbols=vocab_size - len(special_tokens),
             min_frequency=min_frequency,
             augmentation=0,
             total_symbols=True,
@@ -525,16 +536,6 @@ class TokenizerTrainingExperiment(BaseExperiment):
         print(cyan("  SPE merge tokens:"), len(spe_tokens))
 
         # ── Step 4: Build complete vocabulary ───────────────────────────
-        special_tokens = [
-            tok_cfg.bos_token,
-            tok_cfg.pad_token,
-            tok_cfg.eos_token,
-            tok_cfg.unk_token,
-            tok_cfg.cls_token,
-            tok_cfg.sep_token,
-            tok_cfg.mask_token,
-        ]
-
         # Order: special tokens -> atom tokens -> SPE merged tokens
         all_tokens = list(special_tokens)
         seen = set(all_tokens)
