@@ -33,7 +33,7 @@ def encode_safe(smiles: str, slicer: str = "brics") -> str:
         SAFE-encoded string, or the original SMILES on failure.
     """
     try:
-        return safe.encode(smiles, canonical=True, slicer=slicer)
+        return safe.encode(smiles, canonical=True, slicer=slicer, ignore_stereo=True)
     except (safe.SAFEEncodeError, safe.SAFEFragmentationError):
         try:
             # If SAFE encoding fails, at least return a canonical SMILES
