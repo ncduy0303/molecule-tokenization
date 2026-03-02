@@ -20,6 +20,9 @@ from omegaconf import DictConfig
 from utils.print_utils import cyan
 from utils.safe_utils import encode_safe_batch
 
+from rdkit import Chem
+from rdkit import RDLogger
+
 
 MOLNET_URLS = {
     "hiv": "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/HIV.csv",
@@ -102,7 +105,7 @@ def _scaffold_split(df: pd.DataFrame, smi_col: str, seed: int = 42):
 
     # First split: 80% train, 20% other
     gss1 = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=seed)
-    train_idx, other_idx = next(gss1.split(df.index, groups=scaffolds)) # type: ignore
+    train_idx, other_idx = next(gss1.split(df.index, groups=scaffolds))  # type: ignore
 
     # Second split: 50/50 of "other" -> 10% val, 10% test
     other_scaffolds = scaffolds[other_idx]
@@ -208,9 +211,24 @@ def load_molnet(cfg: DictConfig, tokenizer):
         sub = df.iloc[indices].reset_index(drop=True)
         smiles = sub[smi_col].tolist()
 
-        # Optionally convert SMILES to SAFE strings
+        # Canonicalize: SAFE encoding produces canonical output directly,
+        # otherwise canonicalize with RDKit to match pretraining data.
         if use_safe:
             smiles = encode_safe_batch(smiles, slicer=safe_slicer)
+        else:
+            RDLogger.DisableLog("rdApp.*")  # type: ignore
+            canon = []
+            for smi in smiles:
+                try:
+                    mol = Chem.MolFromSmiles(smi)
+                    if mol is not None:
+                        canon.append(Chem.MolToSmiles(mol))
+                    else:
+                        canon.append(smi)
+                except Exception:
+                    canon.append(smi)
+            smiles = canon
+            RDLogger.EnableLog("rdApp.*")  # type: ignore
 
         # Build label vectors: replace NaN with -1 for masking
         labels = sub[target_cols].fillna(-1).values.astype(float).tolist()
