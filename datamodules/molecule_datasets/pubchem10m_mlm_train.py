@@ -20,6 +20,8 @@ from omegaconf import DictConfig
 from rdkit import Chem
 from rdkit import RDLogger
 
+from utils.safe_utils import encode_safe_batch
+
 
 def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     """
@@ -149,7 +151,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     if cols_to_remove:
         splits = splits.remove_columns(cols_to_remove)
 
-    # ── Step 2.5: Canonicalize SMILES with RDKit ────────────────────────
+    # ── Step 2a: Canonicalize SMILES with RDKit ────────────────────────
     # Disable RDKit warnings just in case
     RDLogger.DisableLog("rdApp.*")  # type: ignore
 
@@ -177,6 +179,21 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
 
     # Re-enable RDKit logging
     RDLogger.EnableLog("rdApp.*")  # type: ignore
+
+    # ── Step 2b: Optionally convert SMILES to SAFE strings ─────────────
+    use_safe = cfg.get("use_safe", False)
+    if use_safe:
+        safe_slicer = cfg.get("safe_slicer", "brics")
+        print(f"Encoding SMILES to SAFE (slicer={safe_slicer})...")
+
+        def safe_encode_batch(examples):
+            return {smiles_col: encode_safe_batch(examples[smiles_col], slicer=safe_slicer)}
+
+        splits = splits.map(
+            safe_encode_batch,
+            batched=True,
+            desc="Encoding SMILES to SAFE",
+        )
 
     # ── Step 3: Tokenize ────────────────────────────────────────────────
     from apetokenizer.ape_tokenizer import APETokenizer

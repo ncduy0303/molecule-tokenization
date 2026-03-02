@@ -22,6 +22,8 @@ from omegaconf import DictConfig
 from rdkit import Chem
 from rdkit import RDLogger
 
+from utils.safe_utils import encode_safe_batch
+
 
 def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     """
@@ -46,15 +48,20 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     corpus_size = cfg.get("corpus_size", 2_000_000)
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
 
+    use_safe = cfg.get("use_safe", False)
+    safe_slicer = cfg.get("safe_slicer", "brics")
+
     data_dir.mkdir(parents=True, exist_ok=True)
     indices_path = data_dir / "subset_indices.json"
-    corpus_path = data_dir / "corpus.txt"
+    # Use separate corpus files for SMILES vs SAFE
+    corpus_path = data_dir / ("corpus_safe.txt" if use_safe else "corpus.txt")
 
     # ── Fast path: load from cached corpus.txt ──────────────────────────
     if corpus_path.exists():
         print(f"Loading cached tokenizer-training corpus from {corpus_path}")
         smiles_list = corpus_path.read_text().splitlines()
-        print(f"Loaded {len(smiles_list):,} canonical SMILES strings from cache")
+        label = "SAFE" if use_safe else "SMILES"
+        print(f"Loaded {len(smiles_list):,} canonical {label} strings from cache")
         return smiles_list, corpus_path
 
     # ── Slow path: download, sample valid indices, and save ─────────────
@@ -150,9 +157,16 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
 
     RDLogger.EnableLog("rdApp.*")  # type: ignore
 
+    # ── Optionally convert to SAFE strings ──────────────────────────────
+    if use_safe:
+        print(f"Encoding {len(canonical_smiles_list):,} SMILES to SAFE (slicer={safe_slicer})...")
+        canonical_smiles_list = encode_safe_batch(canonical_smiles_list, slicer=safe_slicer)
+        print(f"SAFE encoding complete")
+
     # ── Save corpus.txt ─────────────────────────────────────────────────
     corpus_path.write_text("\n".join(canonical_smiles_list))
-    print(f"Saved canonical corpus ({len(canonical_smiles_list):,} SMILES) to {corpus_path}")
+    label = "SAFE" if use_safe else "SMILES"
+    print(f"Saved canonical corpus ({len(canonical_smiles_list):,} {label}) to {corpus_path}")
 
     return canonical_smiles_list, corpus_path
 
@@ -174,10 +188,12 @@ def build_word_counts(cfg: DictConfig):
     """
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
     pretokenizer = cfg.get("pretokenizer", None)
+    use_safe = cfg.get("use_safe", False)
+    safe_suffix = "_safe" if use_safe else ""
     if pretokenizer is None:
-        word_counts_path = data_dir / "word_counts.json"
+        word_counts_path = data_dir / f"word_counts{safe_suffix}.json"
     elif pretokenizer in ["atom_split", "structure_split"]:
-        word_counts_path = data_dir / f"{pretokenizer}_word_counts.json"
+        word_counts_path = data_dir / f"{pretokenizer}_word_counts{safe_suffix}.json"
     else:
         raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
 
@@ -260,11 +276,13 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
 
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
     pretokenizer = cfg.get("pretokenizer", None)
+    use_safe = cfg.get("use_safe", False)
+    safe_suffix = "_safe" if use_safe else ""
 
     if pretokenizer is None:
-        word_counts_path = data_dir / "smirk_pcatt_word_counts.json"
+        word_counts_path = data_dir / f"smirk_pcatt_word_counts{safe_suffix}.json"
     elif pretokenizer in ["atom_split", "structure_split"]:
-        word_counts_path = data_dir / f"smirk_pcatt_{pretokenizer}_word_counts.json"
+        word_counts_path = data_dir / f"smirk_pcatt_{pretokenizer}_word_counts{safe_suffix}.json"
     else:
         raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
 

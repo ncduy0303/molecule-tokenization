@@ -18,6 +18,7 @@ from pathlib import Path
 from omegaconf import DictConfig
 
 from utils.print_utils import cyan
+from utils.safe_utils import encode_safe_batch
 
 
 MOLNET_URLS = {
@@ -64,8 +65,7 @@ def _get_target_columns(dataset_name: str, df: pd.DataFrame) -> list[str]:
     # For tox21, sider, clintox, etc.: use all numeric columns except SMILES
     smi_col = _get_smiles_col(dataset_name)
     exclude = {smi_col, "scaffold", "mol_id", "Unnamed: 0"}
-    return [c for c in df.columns
-            if c not in exclude and pd.api.types.is_numeric_dtype(df[c])]
+    return [c for c in df.columns if c not in exclude and pd.api.types.is_numeric_dtype(df[c])]
 
 
 def _download_csv(dataset_name: str, data_dir: Path) -> pd.DataFrame:
@@ -102,7 +102,7 @@ def _scaffold_split(df: pd.DataFrame, smi_col: str, seed: int = 42):
 
     # First split: 80% train, 20% other
     gss1 = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=seed)
-    train_idx, other_idx = next(gss1.split(df.index, groups=scaffolds))
+    train_idx, other_idx = next(gss1.split(df.index, groups=scaffolds)) # type: ignore
 
     # Second split: 50/50 of "other" -> 10% val, 10% test
     other_scaffolds = scaffolds[other_idx]
@@ -146,8 +146,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
 
     dataset_name = cfg.molnet_name
     assert dataset_name in MOLNET_URLS, (
-        f"Unknown MoleculeNet dataset: '{dataset_name}'. "
-        f"Available: {list(MOLNET_URLS.keys())}"
+        f"Unknown MoleculeNet dataset: '{dataset_name}'. " f"Available: {list(MOLNET_URLS.keys())}"
     )
 
     data_dir = Path(cfg.data_dir)
@@ -200,14 +199,25 @@ def load_molnet(cfg: DictConfig, tokenizer):
     print(cyan("  Train:"), len(train_idx), "Val:", len(val_idx), "Test:", len(test_idx))
 
     # ── Step 3: Build per-split DataFrames ──────────────────────────────
+    use_safe = cfg.get("use_safe", False)
+    safe_slicer = cfg.get("safe_slicer", "brics")
+    if use_safe:
+        print(cyan("  SAFE encoding:"), f"enabled (slicer={safe_slicer})")
+
     def df_to_hf(indices):
         sub = df.iloc[indices].reset_index(drop=True)
         smiles = sub[smi_col].tolist()
+
+        # Optionally convert SMILES to SAFE strings
+        if use_safe:
+            smiles = encode_safe_batch(smiles, slicer=safe_slicer)
+
         # Build label vectors: replace NaN with -1 for masking
         labels = sub[target_cols].fillna(-1).values.astype(float).tolist()
 
         # Tokenize
         from apetokenizer.ape_tokenizer import APETokenizer
+
         is_ape = isinstance(tokenizer, APETokenizer)
 
         if is_ape:
@@ -222,11 +232,13 @@ def load_molnet(cfg: DictConfig, tokenizer):
                 )
                 all_input_ids.append(enc["input_ids"])
                 all_attention_mask.append(enc["attention_mask"])
-            return Dataset.from_dict({
-                "input_ids": all_input_ids,
-                "attention_mask": all_attention_mask,
-                "labels": labels,
-            })
+            return Dataset.from_dict(
+                {
+                    "input_ids": all_input_ids,
+                    "attention_mask": all_attention_mask,
+                    "labels": labels,
+                }
+            )
         else:
             encodings = tokenizer(
                 smiles,
@@ -235,16 +247,20 @@ def load_molnet(cfg: DictConfig, tokenizer):
                 padding=False,
                 return_attention_mask=True,
             )
-            return Dataset.from_dict({
-                "input_ids": encodings["input_ids"],
-                "attention_mask": encodings["attention_mask"],
-                "labels": labels,
-            })
+            return Dataset.from_dict(
+                {
+                    "input_ids": encodings["input_ids"],
+                    "attention_mask": encodings["attention_mask"],
+                    "labels": labels,
+                }
+            )
 
-    dataset = DatasetDict({
-        "train": df_to_hf(train_idx),
-        "validation": df_to_hf(val_idx),
-        "test": df_to_hf(test_idx),
-    })
+    dataset = DatasetDict(
+        {
+            "train": df_to_hf(train_idx),
+            "validation": df_to_hf(val_idx),
+            "test": df_to_hf(test_idx),
+        }
+    )
 
     return dataset

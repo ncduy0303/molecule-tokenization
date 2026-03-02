@@ -8,3 +8,5 @@ smiles_column: "SMILES"
 # pretokenizer: "structure_split" # Options: "atom_split", "structure_split", None
 corpus_size: 2000000
 seed: 42
+use_safe: false
+safe_slicer: "brics"
