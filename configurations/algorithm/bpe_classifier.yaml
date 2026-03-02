@@ -3,8 +3,13 @@ defaults:
 
 tokenizer:
   type: auto
-  pretrained: "mikemayuare/SMILYBPE"
+  # pretrained: "mikemayuare/SMILYBPE"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_BPE_5K"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_SBPE_5K"
+  pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_ABPE_5K"
 
 model:
   # pretrained: "mikemayuare/SMILYBPE"
-  pretrained: "data/pretrained_models/SMILYBPE-1M-20Epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-BPE-5K-1M-20Epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-SBPE-5K-1M-20Epoch"
+  pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-ABPE-5K-1M-20Epoch"
