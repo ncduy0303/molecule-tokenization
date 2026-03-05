@@ -3,4 +3,8 @@ defaults:
 
 tokenizer:
   type: pcatt
-  pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SPCATT_5K
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SPCATT_5K
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_APCATT_5K
+  pretrained: data/pretrained_tokenizers/CANONICAL_SAFE_SPCATT_5K
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SAFE_APCATT_5K
+

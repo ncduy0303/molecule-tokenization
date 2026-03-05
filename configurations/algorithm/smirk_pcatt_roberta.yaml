@@ -3,4 +3,5 @@ defaults:
 
 tokenizer:
   type: smirk_pcatt
-  pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SMIRK_SPCATT_5K
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SMIRK_SPCATT_5K
+  pretrained: data/pretrained_tokenizers/CANONICAL_SAFE_SMIRK_SPCATT_5K

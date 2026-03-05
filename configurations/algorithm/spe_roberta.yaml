@@ -3,4 +3,5 @@ defaults:
 
 tokenizer:
   type: spe
-  pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SPE_5K
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SPE_5K
+  pretrained: data/pretrained_tokenizers/CANONICAL_SAFE_SPE_5K

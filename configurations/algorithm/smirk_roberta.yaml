@@ -3,6 +3,8 @@ defaults:
 
 tokenizer:
   type: smirk
-  pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SMIRK_GPE_5K/tokenizer.json
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SMIRK_GPE_5K/tokenizer.json
   # pretrained: data/pretrained_tokenizers/CANONICAL_SMILY_SMIRK_SGPE_5K/tokenizer.json
-  # pretrained: data/pretrained_tokenizers/SMILY_SMIRK/tokenizer.json
+  pretrained: data/pretrained_tokenizers/SMILY_SMIRK/tokenizer.json
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SAFE_SMIRK_GPE_5K/tokenizer.json
+  # pretrained: data/pretrained_tokenizers/CANONICAL_SAFE_SMIRK_SGPE_5K/tokenizer.json
