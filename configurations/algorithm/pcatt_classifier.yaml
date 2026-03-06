@@ -5,7 +5,11 @@ tokenizer:
   type: pcatt
   # pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_SPCATT_5K"
   pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_APCATT_5K"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_SAFE_SPCATT_5K"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_SAFE_APCATT_5K"
 
 model:
   # pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-SPCATT-5K-1M-20Epoch"
   pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-APCATT-5K-1M-20Epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-SAFE-SPCATT-5K-1M-20Epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-SAFE-APCATT-5K-1M-20Epoch"

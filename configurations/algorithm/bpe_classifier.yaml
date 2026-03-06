@@ -7,9 +7,15 @@ tokenizer:
   # pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_BPE_5K"
   # pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_SBPE_5K"
   pretrained: "data/pretrained_tokenizers/CANONICAL_SMILY_ABPE_5K"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_SAFE_BPE_5K"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_SAFE_SBPE_5K"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_SAFE_ABPE_5K"
 
 model:
   # pretrained: "mikemayuare/SMILYBPE"
   # pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-BPE-5K-1M-20Epoch"
   # pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-SBPE-5K-1M-20Epoch"
   pretrained: "data/pretrained_models/mlm/CANONICAL-SMILY-ABPE-5K-1M-20Epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-SAFE-BPE-5K-1M-20Epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-SAFE-SBPE-5K-1M-20Epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-SAFE-ABPE-5K-1M-20Epoch"
