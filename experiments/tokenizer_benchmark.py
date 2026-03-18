@@ -45,6 +45,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         "ape_roberta": MoleculeMLMAlgo,
         "bpe_roberta": MoleculeMLMAlgo,
         "spe_roberta": MoleculeMLMAlgo,
+        "fragsmiles_roberta": MoleculeMLMAlgo,
         "ape_roberta_pretrained": MoleculeMLMAlgo,
         "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }

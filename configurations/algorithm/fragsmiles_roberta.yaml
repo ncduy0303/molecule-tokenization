@@ -1,0 +1,6 @@
+defaults:
+  - base_roberta
+
+tokenizer:
+  type: fragsmiles
+  pretrained: "data/pretrained_tokenizers/CANONICAL_FRAGSMILES"

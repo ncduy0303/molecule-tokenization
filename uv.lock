@@ -551,6 +551,21 @@ wheels = [
 ]
 
 [[package]]
+name = "chemicalgof"
+version = "0.2.0"
+source = { git = "https://github.com/ncduy0303/chemicalgof.git#5f1beeb6e4b6e45bfae877761c78b03b03cd9fb5" }
+dependencies = [
+    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "pandas", version = "3.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "rdkit" },
+    { name = "setuptools" },
+]
+
+[[package]]
 name = "click"
 version = "8.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1994,6 +2009,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "accelerate" },
     { name = "apetokenizer" },
+    { name = "chemicalgof" },
     { name = "click" },
     { name = "colorama" },
     { name = "datasets" },
@@ -2033,6 +2049,7 @@ dev = [
 requires-dist = [
     { name = "accelerate", specifier = ">=1.12.0" },
     { name = "apetokenizer", git = "https://github.com/mikemayuare/apetokenizer" },
+    { name = "chemicalgof", git = "https://github.com/ncduy0303/chemicalgof.git" },
     { name = "click", specifier = ">=8.3.1" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "datasets", specifier = ">=4.5.0" },

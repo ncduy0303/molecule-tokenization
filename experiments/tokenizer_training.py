@@ -94,6 +94,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         "train_smirk_gpe": TokenizerTrainer,
         "train_pcatt": TokenizerTrainer,
         "train_smirk_pcatt": TokenizerTrainer,
+        "train_fragsmiles": TokenizerTrainer,
     }
 
     def __init__(
@@ -131,10 +132,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_spe(corpus, algo_cfg)
         elif tok_type == "smirk_pcatt":
             self._train_smirk_pcatt(corpus, algo_cfg)
+        elif tok_type == "fragsmiles":
+            self._train_fragsmiles(corpus, algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt'"
+                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt', 'fragsmiles'"
             )
 
     def _train_ape(self, corpus, algo_cfg):
@@ -653,3 +656,105 @@ class TokenizerTrainingExperiment(BaseExperiment):
             print(f"    -> Smirk: {smirk_tokens}")
             print(f"    -> Smirk-PCATT: {decoded_tokens}")
             print(f"    -> {len(decoded_tokens)} tokens")
+
+    def _train_fragsmiles(self, corpus, algo_cfg):
+        """Train a FragSMILES tokenizer using chemicalgof fragment decomposition.
+
+        FragSMILES uses the chemicalgof library to decompose SMILES strings into
+        fragment tokens. The vocabulary is built by counting unique fragments in the
+        training corpus and assigning IDs based on frequency.
+        """
+        import chemicalgof
+        from utils.fragsmiles_tokenizer import FragSMILESTokenizer
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+
+        special_tokens = [
+            tok_cfg.bos_token,
+            tok_cfg.pad_token,
+            tok_cfg.eos_token,
+            tok_cfg.unk_token,
+            tok_cfg.cls_token,
+            tok_cfg.sep_token,
+            tok_cfg.mask_token,
+        ]
+
+        print(cyan("Training FragSMILES tokenizer..."))
+        print(cyan("  Target vocab size:"), vocab_size)
+
+        # ── Step 1: Build fragment vocabulary from corpus ─────────────────
+        print(cyan("  Building fragment vocabulary from corpus..."))
+        fragment_counts: dict[str, int] = {}
+
+        for smi in corpus:
+            try:
+                # Encode and split the SMILES string into fragments
+                encoded = chemicalgof.encode(smi, canonical=True)
+                fragments = chemicalgof.split(encoded)
+
+                for frag in fragments:
+                    if frag:  # Skip empty fragments
+                        fragment_counts[frag] = fragment_counts.get(frag, 0) + 1
+            except Exception:
+                # Skip problematic SMILES strings
+                pass
+
+        # Sort fragments by frequency (most common first)
+        sorted_fragments = sorted(fragment_counts.items(), key=lambda x: x[1], reverse=True)
+        print(cyan("  Unique fragments found:"), len(sorted_fragments))
+
+        # ── Step 2: Build vocabulary with special tokens first ──────────
+        vocab_dict: dict[str, int] = {}
+
+        # Add special tokens first with fixed indices
+        for i, token in enumerate(special_tokens):
+            if token not in vocab_dict:
+                vocab_dict[token] = i
+
+        # Add fragments in order of frequency until we reach vocab_size
+        for frag, count in sorted_fragments:
+            if frag not in vocab_dict:
+                if len(vocab_dict) >= vocab_size:
+                    break
+                vocab_dict[frag] = len(vocab_dict)
+
+        print(cyan("  Final vocab size:"), len(vocab_dict))
+        print(cyan("  Special tokens:"), len(special_tokens))
+        print(cyan("  Fragment tokens:"), len(vocab_dict) - len(special_tokens))
+
+        # ── Step 3: Create and save tokenizer ──────────────────────────
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save vocabulary
+        vocab_file = save_dir / "vocab.json"
+        with open(vocab_file, "w", encoding="utf-8") as f:
+            json.dump(vocab_dict, f, ensure_ascii=False, indent=2)
+
+        # Create tokenizer instance
+        tokenizer = FragSMILESTokenizer(
+            vocab_file=str(vocab_file),
+            unk_token=tok_cfg.unk_token,
+            sep_token=tok_cfg.sep_token,
+            pad_token=tok_cfg.pad_token,
+            cls_token=tok_cfg.cls_token,
+            mask_token=tok_cfg.mask_token,
+            bos_token=tok_cfg.bos_token,
+            eos_token=tok_cfg.eos_token,
+        )
+
+        # Save full tokenizer
+        tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # ── Step 4: Print example tokenizations ────────────────────────
+        examples = corpus[:5]
+        print(cyan("\nExample tokenizations:"))
+        for smi in examples:
+            tokens = tokenizer.tokenize(smi)
+            token_ids = tokenizer.convert_tokens_to_ids(tokens)
+            print(f"  {smi}")
+            print(f"    -> Fragments: {tokens}")
+            print(f"    -> Token IDs: {token_ids}")
+            print(f"    -> {len(tokens)} tokens")
