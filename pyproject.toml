@@ -37,3 +37,9 @@ dependencies = [
 [tool.uv.sources]
 apetokenizer = { git = "https://github.com/mikemayuare/apetokenizer" }
 greedtok = { git = "https://github.com/ncduy0303/pcatt" }
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+    "ipywidgets>=8.1.8",
+]
