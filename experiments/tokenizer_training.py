@@ -731,6 +731,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
         with open(vocab_file, "w", encoding="utf-8") as f:
             json.dump(vocab_dict, f, ensure_ascii=False, indent=2)
 
+        # Save the sorted fragment list for reference (optional)
+        fragments_file = save_dir / "fragments.txt"
+        with open(fragments_file, "w", encoding="utf-8") as f:
+            for frag, count in sorted_fragments:
+                f.write(f"{frag}\t{count}\n")
+
         # Create tokenizer instance
         tokenizer = FragSMILESTokenizer(
             vocab_file=str(vocab_file),

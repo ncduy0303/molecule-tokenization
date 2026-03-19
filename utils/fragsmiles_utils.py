@@ -25,7 +25,15 @@ def encode_fragsmiles(smiles: str) -> str:
     import chemicalgof
 
     try:
-        return chemicalgof.encode(smiles, canonical=True)
+        # https://github.com/f48r1/chemicalgof/issues/1
+        if "." in smiles:
+            splitted_smiles = smiles.split(".")
+            fragsmiles = ";".join(
+                [chemicalgof.encode(single_smiles, canonical=True) for single_smiles in splitted_smiles]
+            )
+        else:
+            fragsmiles = chemicalgof.encode(smiles, canonical=True)
+        return fragsmiles
     except Exception as exc:
         logger.warning(
             "fragSMILES encoding failed for SMILES=%r. Falling back to canonical SMILES. Error: %s", smiles, exc

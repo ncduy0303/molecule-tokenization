@@ -80,7 +80,8 @@ class FragSMILESTokenizer(PreTrainedTokenizer):
         import chemicalgof
 
         try:
-            fragments = chemicalgof.split(text)
+            # https://github.com/f48r1/chemicalgof/issues/1
+            fragments = [token for single_fragsmiles in text.split(";") for token in chemicalgof.split(single_fragsmiles)]
 
             # Convert fragments to tokens
             tokens = [frag for frag in fragments if frag]
