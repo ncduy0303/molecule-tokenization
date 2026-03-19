@@ -54,10 +54,14 @@ class MoleculeClassificationAlgo:
             from utils.smirk_pcatt_tokenizer import SmirkPCATTTokenizer
 
             tokenizer = SmirkPCATTTokenizer.from_pretrained(tok_cfg.pretrained)
+        elif tok_type == "fragsmiles":
+            from utils.fragsmiles_tokenizer import FragSMILESTokenizer
+
+            tokenizer = FragSMILESTokenizer.from_pretrained(tok_cfg.pretrained)
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt'."
+                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt', 'fragsmiles'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)
