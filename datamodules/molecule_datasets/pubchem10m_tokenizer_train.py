@@ -23,6 +23,7 @@ from rdkit import Chem
 from rdkit import RDLogger
 
 from utils.safe_utils import encode_safe_batch
+from utils.fragsmiles_utils import encode_fragsmiles_batch
 
 
 def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
@@ -50,17 +51,28 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
 
     use_safe = cfg.get("use_safe", False)
     safe_slicer = cfg.get("safe_slicer", "brics")
+    use_fragsmiles = cfg.get("use_fragsmiles", False)
+
+    if use_safe and use_fragsmiles:
+        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
 
     data_dir.mkdir(parents=True, exist_ok=True)
     indices_path = data_dir / "subset_indices.json"
-    # Use separate corpus files for SMILES vs SAFE
-    corpus_path = data_dir / ("corpus_safe.txt" if use_safe else "corpus.txt")
+    # Use separate corpus files per representation mode
+    if use_safe:
+        corpus_path = data_dir / "corpus_safe.txt"
+        label = "SAFE"
+    elif use_fragsmiles:
+        corpus_path = data_dir / "corpus_fragsmiles.txt"
+        label = "fragSMILES"
+    else:
+        corpus_path = data_dir / "corpus.txt"
+        label = "SMILES"
 
     # ── Fast path: load from cached corpus.txt ──────────────────────────
     if corpus_path.exists():
         print(f"Loading cached tokenizer-training corpus from {corpus_path}")
         smiles_list = corpus_path.read_text().splitlines()
-        label = "SAFE" if use_safe else "SMILES"
         print(f"Loaded {len(smiles_list):,} canonical {label} strings from cache")
         return smiles_list, corpus_path
 
@@ -145,6 +157,11 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         print(f"Encoding {len(raw_smiles_list):,} SMILES to SAFE (slicer={safe_slicer})...")
         processed_list = encode_safe_batch(raw_smiles_list, slicer=safe_slicer)
         print("SAFE encoding complete")
+    elif use_fragsmiles:
+        # fragSMILES encoding produces canonical output directly — no RDKit step needed
+        print(f"Encoding {len(raw_smiles_list):,} SMILES to fragSMILES...")
+        processed_list = encode_fragsmiles_batch(raw_smiles_list)
+        print("fragSMILES encoding complete")
     else:
         # Canonicalize with RDKit
         print(f"Canonicalizing {len(raw_smiles_list):,} SMILES strings...")
@@ -163,7 +180,6 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
 
     # ── Save corpus ─────────────────────────────────────────────────────
     corpus_path.write_text("\n".join(processed_list))
-    label = "SAFE" if use_safe else "SMILES"
     print(f"Saved canonical corpus ({len(processed_list):,} {label}) to {corpus_path}")
 
     return processed_list, corpus_path
@@ -187,11 +203,14 @@ def build_word_counts(cfg: DictConfig):
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
     pretokenizer = cfg.get("pretokenizer", None)
     use_safe = cfg.get("use_safe", False)
-    safe_suffix = "_safe" if use_safe else ""
+    use_fragsmiles = cfg.get("use_fragsmiles", False)
+    if use_safe and use_fragsmiles:
+        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
+    mode_suffix = "_safe" if use_safe else "_fragsmiles" if use_fragsmiles else ""
     if pretokenizer is None:
-        word_counts_path = data_dir / f"word_counts{safe_suffix}.json"
+        word_counts_path = data_dir / f"word_counts{mode_suffix}.json"
     elif pretokenizer in ["atom_split", "structure_split"]:
-        word_counts_path = data_dir / f"{pretokenizer}_word_counts{safe_suffix}.json"
+        word_counts_path = data_dir / f"{pretokenizer}_word_counts{mode_suffix}.json"
     else:
         raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
 
@@ -275,12 +294,15 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
     data_dir = Path(cfg.get("data_dir", "data/pubchem10m_tokenizer_train"))
     pretokenizer = cfg.get("pretokenizer", None)
     use_safe = cfg.get("use_safe", False)
-    safe_suffix = "_safe" if use_safe else ""
+    use_fragsmiles = cfg.get("use_fragsmiles", False)
+    if use_safe and use_fragsmiles:
+        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
+    mode_suffix = "_safe" if use_safe else "_fragsmiles" if use_fragsmiles else ""
 
     if pretokenizer is None:
-        word_counts_path = data_dir / f"smirk_pcatt_word_counts{safe_suffix}.json"
+        word_counts_path = data_dir / f"smirk_pcatt_word_counts{mode_suffix}.json"
     elif pretokenizer in ["atom_split", "structure_split"]:
-        word_counts_path = data_dir / f"smirk_pcatt_{pretokenizer}_word_counts{safe_suffix}.json"
+        word_counts_path = data_dir / f"smirk_pcatt_{pretokenizer}_word_counts{mode_suffix}.json"
     else:
         raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
 

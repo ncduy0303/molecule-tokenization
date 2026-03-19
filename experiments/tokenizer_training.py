@@ -658,11 +658,10 @@ class TokenizerTrainingExperiment(BaseExperiment):
             print(f"    -> {len(decoded_tokens)} tokens")
 
     def _train_fragsmiles(self, corpus, algo_cfg):
-        """Train a FragSMILES tokenizer using chemicalgof fragment decomposition.
+        """Train a FragSMILES tokenizer from a precomputed fragSMILES corpus.
 
-        FragSMILES uses the chemicalgof library to decompose SMILES strings into
-        fragment tokens. The vocabulary is built by counting unique fragments in the
-        training corpus and assigning IDs based on frequency.
+        The vocabulary is built by splitting each fragSMILES string with
+        chemicalgof.split and counting fragment frequencies.
         """
         import chemicalgof
         from utils.fragsmiles_tokenizer import FragSMILESTokenizer
@@ -682,16 +681,16 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         print(cyan("Training FragSMILES tokenizer..."))
         print(cyan("  Target vocab size:"), vocab_size)
+        if not self.root_cfg.dataset.get("use_fragsmiles", False):
+            print(cyan("  Warning:"), "dataset.use_fragsmiles=false; expected precomputed fragSMILES corpus")
 
         # ── Step 1: Build fragment vocabulary from corpus ─────────────────
         print(cyan("  Building fragment vocabulary from corpus..."))
         fragment_counts: dict[str, int] = {}
 
-        for smi in corpus:
+        for fragsmi in corpus:
             try:
-                # Encode and split the SMILES string into fragments
-                encoded = chemicalgof.encode(smi, canonical=True)
-                fragments = chemicalgof.split(encoded)
+                fragments = chemicalgof.split(fragsmi)
 
                 for frag in fragments:
                     if frag:  # Skip empty fragments

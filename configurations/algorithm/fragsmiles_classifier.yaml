@@ -6,3 +6,6 @@ tokenizer:
   pretrained: "data/pretrained_tokenizers/CANONICAL_FRAGSMILES_5K"
   # pretrained: "data/pretrained_tokenizers/CANONICAL_FRAGSMILES_20K"
   # pretrained: "data/pretrained_tokenizers/CANONICAL_FRAGSMILES_50K"
+
+model:
+  pretrained: "data/pretrained_models/mlm/CANONICAL-FRAGSMILES-5K-1M-20Epoch"

@@ -12,9 +12,13 @@ Usage:
     # -> "c12ccc3cc1.C3(C)C(=O)O.CC(C)C2"  (still valid SMILES)
 """
 
+import logging
 import safe
 from typing import List
 from rdkit import Chem
+
+
+logger = logging.getLogger(__name__)
 
 
 def encode_safe(smiles: str, slicer: str = "brics") -> str:
@@ -34,14 +38,24 @@ def encode_safe(smiles: str, slicer: str = "brics") -> str:
     """
     try:
         return safe.encode(smiles, canonical=True, slicer=slicer, ignore_stereo=True)
-    except (safe.SAFEEncodeError, safe.SAFEFragmentationError):
+    except (safe.SAFEEncodeError, safe.SAFEFragmentationError) as exc:
+        logger.warning(
+            "SAFE encoding failed for SMILES=%r (slicer=%s). Falling back to canonical SMILES. Error: %s",
+            smiles,
+            slicer,
+            exc,
+        )
         try:
             # If SAFE encoding fails, at least return a canonical SMILES
             mol = Chem.MolFromSmiles(smiles)
             if mol is not None:
                 return Chem.MolToSmiles(mol)
-        except Exception:
-            pass  # If canonicalization also fails, return original SMILES
+        except Exception as canon_exc:
+            logger.warning(
+                "RDKit canonicalization fallback also failed for SMILES=%r. Returning original SMILES. Error: %s",
+                smiles,
+                canon_exc,
+            )
         return smiles
 
 

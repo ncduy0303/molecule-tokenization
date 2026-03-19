@@ -1,9 +1,10 @@
 """
 FragSMILES tokenizer implementation.
 
-Uses chemicalgof to split SMILES strings into fragment tokens.
-Maps each unique fragment to a unique ID based on frequency in the training corpus.
-Unseen fragments are seamlessly mapped to the configured [UNK] token.
+Consumes precomputed fragSMILES strings and tokenizes them using
+chemicalgof.split. Unseen fragments are mapped to the configured [UNK] token.
+
+Reference: spe_tokenizer.py
 """
 
 import collections
@@ -30,9 +31,8 @@ class FragSMILESTokenizer(PreTrainedTokenizer):
     r"""
     Constructs a FragSMILES tokenizer based on fragment decomposition.
 
-    This tokenizer uses chemicalgof to decompose SMILES strings into fragment tokens.
-    Each unique fragment is mapped to a unique token ID based on frequency in the
-    training corpus. Unseen fragments are mapped to the UNK token.
+    This tokenizer expects fragSMILES strings and uses chemicalgof.split to
+    decompose them into fragment tokens. Unseen fragments are mapped to UNK.
     """
 
     vocab_files_names = VOCAB_FILES_NAMES
@@ -75,14 +75,12 @@ class FragSMILESTokenizer(PreTrainedTokenizer):
 
     def _tokenize(self, text: str, **kwargs) -> List[str]:
         """
-        Tokenize a SMILES string using fragSMILES decomposition.
+        Tokenize a fragSMILES string.
         """
         import chemicalgof
 
         try:
-            # Encode and split the SMILES string
-            encoded = chemicalgof.encode(text, canonical=True)
-            fragments = chemicalgof.split(encoded)
+            fragments = chemicalgof.split(text)
 
             # Convert fragments to tokens
             tokens = [frag for frag in fragments if frag]
@@ -110,6 +108,47 @@ class FragSMILESTokenizer(PreTrainedTokenizer):
         except Exception:
             # Fallback (useful if special tokens are passed into this method)
             return joined_encoded
+
+    def build_inputs_with_special_tokens(
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
+    ) -> List[int]:
+        """
+        Build model inputs with special tokens.
+
+        Format:
+        - single sequence: [CLS] X [SEP]
+        - pair sequence:   [CLS] A [SEP] B [SEP]
+        """
+        if token_ids_1 is None:
+            return [self.cls_token_id] + token_ids_0 + [self.sep_token_id]  # type: ignore
+        cls = [self.cls_token_id]
+        sep = [self.sep_token_id]
+        return cls + token_ids_0 + sep + token_ids_1 + sep  # type: ignore
+
+    def get_special_tokens_mask(
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None, already_has_special_tokens: bool = False
+    ) -> List[int]:
+        """Return a mask with 1 for special tokens and 0 for regular tokens."""
+        if already_has_special_tokens:
+            if token_ids_1 is not None:
+                raise ValueError(
+                    "You should not supply a second sequence if the provided sequence already has special tokens."
+                )
+            return list(map(lambda x: 1 if x in [self.sep_token_id, self.cls_token_id] else 0, token_ids_0))
+
+        if token_ids_1 is not None:
+            return [1] + ([0] * len(token_ids_0)) + [1] + ([0] * len(token_ids_1)) + [1]
+        return [1] + ([0] * len(token_ids_0)) + [1]
+
+    def create_token_type_ids_from_sequences(
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
+    ) -> List[int]:
+        """Create token type IDs with the same length as built inputs."""
+        sep = [self.sep_token_id]
+        cls = [self.cls_token_id]
+        if token_ids_1 is None:
+            return len(cls + token_ids_0 + sep) * [0]
+        return len(cls + token_ids_0 + sep) * [0] + len(token_ids_1 + sep) * [1]
 
     def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> tuple:
         """Saves the vocabulary to a directory."""

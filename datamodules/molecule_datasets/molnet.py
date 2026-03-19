@@ -19,6 +19,7 @@ from omegaconf import DictConfig
 
 from utils.print_utils import cyan
 from utils.safe_utils import encode_safe_batch
+from utils.fragsmiles_utils import encode_fragsmiles_batch
 
 from rdkit import Chem
 from rdkit import RDLogger
@@ -201,34 +202,79 @@ def load_molnet(cfg: DictConfig, tokenizer):
 
     print(cyan("  Train:"), len(train_idx), "Val:", len(val_idx), "Test:", len(test_idx))
 
-    # ── Step 3: Build per-split DataFrames ──────────────────────────────
+    # ── Step 3: Build/Load cached processed strings per split ───────────
     use_safe = cfg.get("use_safe", False)
     safe_slicer = cfg.get("safe_slicer", "brics")
+    use_fragsmiles = cfg.get("use_fragsmiles", False)
+
+    if use_safe and use_fragsmiles:
+        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
+
     if use_safe:
+        mode_prefix = "canon_safe"
+        label = "SAFE"
         print(cyan("  SAFE encoding:"), f"enabled (slicer={safe_slicer})")
+    elif use_fragsmiles:
+        mode_prefix = "canon_fragsmiles"
+        label = "fragSMILES"
+        print(cyan("  fragSMILES encoding:"), "enabled")
+    else:
+        mode_prefix = "canon_smiles"
+        label = "SMILES"
 
-    def df_to_hf(indices):
-        sub = df.iloc[indices].reset_index(drop=True)
-        smiles = sub[smi_col].tolist()
+    cache_paths = {
+        split: data_dir / f"{dataset_name}_{mode_prefix}_{split}_seed{seed}.txt"
+        for split in ("train", "validation", "test")
+    }
+    all_cached = all(path.exists() for path in cache_paths.values())
 
-        # Canonicalize: SAFE encoding produces canonical output directly,
-        # otherwise canonicalize with RDKit to match pretraining data.
+    def process_smiles_list(smiles: list[str]) -> list[str]:
         if use_safe:
-            smiles = encode_safe_batch(smiles, slicer=safe_slicer)
-        else:
-            RDLogger.DisableLog("rdApp.*")  # type: ignore
-            canon = []
-            for smi in smiles:
-                try:
-                    mol = Chem.MolFromSmiles(smi)
-                    if mol is not None:
-                        canon.append(Chem.MolToSmiles(mol))
-                    else:
-                        canon.append(smi)
-                except Exception:
+            return encode_safe_batch(smiles, slicer=safe_slicer)
+        if use_fragsmiles:
+            return encode_fragsmiles_batch(smiles)
+
+        RDLogger.DisableLog("rdApp.*")  # type: ignore
+        canon = []
+        for smi in smiles:
+            try:
+                mol = Chem.MolFromSmiles(smi)
+                if mol is not None:
+                    canon.append(Chem.MolToSmiles(mol))
+                else:
                     canon.append(smi)
-            smiles = canon
-            RDLogger.EnableLog("rdApp.*")  # type: ignore
+            except Exception:
+                canon.append(smi)
+        RDLogger.EnableLog("rdApp.*")  # type: ignore
+        return canon
+
+    index_map = {
+        "train": train_idx,
+        "validation": val_idx,
+        "test": test_idx,
+    }
+
+    split_smiles_cache: dict[str, list[str]] = {}
+    if all_cached:
+        print(cyan(f"  Loading cached {label} strings from"), str(data_dir))
+        for split, path in cache_paths.items():
+            lines = path.read_text().splitlines()
+            split_smiles_cache[split] = lines
+            print(cyan(f"    {split}:"), f"{len(lines):,} {label} strings")
+    else:
+        print(cyan(f"  Building cached {label} strings for MolNet splits..."))
+        for split, indices in index_map.items():
+            sub = df.iloc[indices].reset_index(drop=True)
+            smiles = sub[smi_col].tolist()
+            processed = process_smiles_list(smiles)
+            split_smiles_cache[split] = processed
+            cache_paths[split].write_text("\n".join(processed))
+            print(cyan(f"    {split}:"), f"{len(processed):,} {label} strings")
+        print(cyan("  Cached processed strings to"), f"{data_dir}/{dataset_name}_{mode_prefix}_*_seed{seed}.txt")
+
+    def df_to_hf(split_name, indices):
+        sub = df.iloc[indices].reset_index(drop=True)
+        smiles = split_smiles_cache[split_name]
 
         # Build label vectors: replace NaN with -1 for masking
         labels = sub[target_cols].fillna(-1).values.astype(float).tolist()
@@ -275,9 +321,9 @@ def load_molnet(cfg: DictConfig, tokenizer):
 
     dataset = DatasetDict(
         {
-            "train": df_to_hf(train_idx),
-            "validation": df_to_hf(val_idx),
-            "test": df_to_hf(test_idx),
+            "train": df_to_hf("train", train_idx),
+            "validation": df_to_hf("validation", val_idx),
+            "test": df_to_hf("test", test_idx),
         }
     )
 

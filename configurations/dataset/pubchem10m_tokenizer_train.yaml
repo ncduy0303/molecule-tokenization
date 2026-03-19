@@ -10,3 +10,4 @@ corpus_size: 2000000
 seed: 42
 use_safe: false
 safe_slicer: "brics"
+use_fragsmiles: false

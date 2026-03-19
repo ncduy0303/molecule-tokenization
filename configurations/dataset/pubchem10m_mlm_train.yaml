@@ -12,3 +12,4 @@ val_size: 100000
 test_size: 100000
 use_safe: false
 safe_slicer: "brics"
+use_fragsmiles: false

@@ -21,6 +21,7 @@ from rdkit import Chem
 from rdkit import RDLogger
 
 from utils.safe_utils import encode_safe_batch
+from utils.fragsmiles_utils import encode_fragsmiles_batch
 
 
 def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
@@ -137,7 +138,19 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     # Cache canonical SMILES per split so we never re-download / re-canonicalize.
     use_safe = cfg.get("use_safe", False)
     safe_slicer = cfg.get("safe_slicer", "brics")
-    prefix = f"canon_safe" if use_safe else "canon_smiles"
+    use_fragsmiles = cfg.get("use_fragsmiles", False)
+    if use_safe and use_fragsmiles:
+        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
+
+    if use_safe:
+        prefix = "canon_safe"
+        label = "SAFE"
+    elif use_fragsmiles:
+        prefix = "canon_fragsmiles"
+        label = "fragSMILES"
+    else:
+        prefix = "canon_smiles"
+        label = "SMILES"
     cache_paths = {split: data_dir / f"{prefix}_{split}.txt" for split in ("train", "validation", "test")}
     all_cached = all(p.exists() for p in cache_paths.values())
 
@@ -145,7 +158,6 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         # ── Fast path: load processed SMILES from text files ────────────
         from datasets import Dataset, DatasetDict
 
-        label = "SAFE" if use_safe else "SMILES"
         print(f"Loading cached {label} strings from {data_dir}...")
         split_smiles: dict[str, list[str]] = {}
         for split, path in cache_paths.items():
@@ -188,6 +200,18 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
                 batched=True,
                 desc="Encoding SMILES to SAFE",
             )
+        elif use_fragsmiles:
+            # ── Step 2a: Convert SMILES to fragSMILES once and cache ────
+            print("Encoding SMILES to fragSMILES...")
+
+            def fragsmiles_encode_batch_fn(examples):
+                return {smiles_col: encode_fragsmiles_batch(examples[smiles_col])}
+
+            splits = splits.map(
+                fragsmiles_encode_batch_fn,
+                batched=True,
+                desc="Encoding SMILES to fragSMILES",
+            )
         else:
             # ── Step 2a: Canonicalize SMILES with RDKit ─────────────────
             RDLogger.DisableLog("rdApp.*")  # type: ignore
@@ -216,7 +240,6 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         # Cache processed SMILES/SAFE strings to disk
         for split in ("train", "validation", "test"):
             cache_paths[split].write_text("\n".join(splits[split][smiles_col]))
-        label = "SAFE" if use_safe else "SMILES"
         print(f"Cached {label} strings to {data_dir}/{prefix}_*.txt")
 
     # ── Step 3: Tokenize ────────────────────────────────────────────────

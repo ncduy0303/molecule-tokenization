@@ -8,3 +8,4 @@ max_length: 512
 seed: 42
 use_safe: false
 safe_slicer: "brics"
+use_fragsmiles: false
