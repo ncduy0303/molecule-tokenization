@@ -24,6 +24,7 @@ from rdkit import RDLogger
 
 from utils.safe_utils import encode_safe_batch
 from utils.fragsmiles_utils import encode_fragsmiles_batch
+from utils.tsmiles_utils import encode_tsmiles_batch
 
 
 def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
@@ -52,9 +53,13 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     use_safe = cfg.get("use_safe", False)
     safe_slicer = cfg.get("safe_slicer", "brics")
     use_fragsmiles = cfg.get("use_fragsmiles", False)
+    use_tsmiles = cfg.get("use_tsmiles", False)
+    tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
+    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
 
-    if use_safe and use_fragsmiles:
-        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
+    n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
+    if n_active > 1:
+        raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")
 
     data_dir.mkdir(parents=True, exist_ok=True)
     indices_path = data_dir / "subset_indices.json"
@@ -65,6 +70,9 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     elif use_fragsmiles:
         corpus_path = data_dir / "corpus_fragsmiles.txt"
         label = "fragSMILES"
+    elif use_tsmiles:
+        corpus_path = data_dir / f"corpus_tsmiles_{tsmiles_slicer}_{tsmiles_variant}.txt"
+        label = f"t-SMILES ({tsmiles_slicer}/{tsmiles_variant})"
     else:
         corpus_path = data_dir / "corpus.txt"
         label = "SMILES"
@@ -162,6 +170,13 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         print(f"Encoding {len(raw_smiles_list):,} SMILES to fragSMILES...")
         processed_list = encode_fragsmiles_batch(raw_smiles_list)
         print("fragSMILES encoding complete")
+    elif use_tsmiles:
+        # t-SMILES encoding; falls back to original SMILES on failure
+        print(
+            f"Encoding {len(raw_smiles_list):,} SMILES to t-SMILES (slicer={tsmiles_slicer}, variant={tsmiles_variant})..."
+        )
+        processed_list = encode_tsmiles_batch(raw_smiles_list, slicer=tsmiles_slicer, variant=tsmiles_variant)
+        print("t-SMILES encoding complete")
     else:
         # Canonicalize with RDKit
         print(f"Canonicalizing {len(raw_smiles_list):,} SMILES strings...")
@@ -204,9 +219,16 @@ def build_word_counts(cfg: DictConfig):
     pretokenizer = cfg.get("pretokenizer", None)
     use_safe = cfg.get("use_safe", False)
     use_fragsmiles = cfg.get("use_fragsmiles", False)
-    if use_safe and use_fragsmiles:
-        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
-    mode_suffix = "_safe" if use_safe else "_fragsmiles" if use_fragsmiles else ""
+    use_tsmiles = cfg.get("use_tsmiles", False)
+    tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
+    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
+    if n_active > 1:
+        raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")
+    if use_tsmiles:
+        mode_suffix = f"_tsmiles_{tsmiles_slicer}_{tsmiles_variant}"
+    else:
+        mode_suffix = "_safe" if use_safe else "_fragsmiles" if use_fragsmiles else ""
     if pretokenizer is None:
         word_counts_path = data_dir / f"word_counts{mode_suffix}.json"
     elif pretokenizer in ["atom_split", "structure_split"]:
@@ -295,9 +317,16 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
     pretokenizer = cfg.get("pretokenizer", None)
     use_safe = cfg.get("use_safe", False)
     use_fragsmiles = cfg.get("use_fragsmiles", False)
-    if use_safe and use_fragsmiles:
-        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
-    mode_suffix = "_safe" if use_safe else "_fragsmiles" if use_fragsmiles else ""
+    use_tsmiles = cfg.get("use_tsmiles", False)
+    tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
+    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
+    if n_active > 1:
+        raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")
+    if use_tsmiles:
+        mode_suffix = f"_tsmiles_{tsmiles_slicer}_{tsmiles_variant}"
+    else:
+        mode_suffix = "_safe" if use_safe else "_fragsmiles" if use_fragsmiles else ""
 
     if pretokenizer is None:
         word_counts_path = data_dir / f"smirk_pcatt_word_counts{mode_suffix}.json"

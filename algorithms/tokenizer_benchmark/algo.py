@@ -57,10 +57,14 @@ class MoleculeMLMAlgo:
             from utils.fragsmiles_tokenizer import FragSMILESTokenizer
 
             tokenizer = FragSMILESTokenizer.from_pretrained(tok_cfg.pretrained)
+        elif tok_type == "tsmiles":
+            from utils.tsmiles_tokenizer import TSMILESTokenizer
+
+            tokenizer = TSMILESTokenizer.from_pretrained(tok_cfg.pretrained)
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt', 'fragsmiles'."
+                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt', 'fragsmiles', 'tsmiles'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)

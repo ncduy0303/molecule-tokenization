@@ -22,6 +22,7 @@ from rdkit import RDLogger
 
 from utils.safe_utils import encode_safe_batch
 from utils.fragsmiles_utils import encode_fragsmiles_batch
+from utils.tsmiles_utils import encode_tsmiles_batch
 
 
 def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
@@ -139,8 +140,12 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     use_safe = cfg.get("use_safe", False)
     safe_slicer = cfg.get("safe_slicer", "brics")
     use_fragsmiles = cfg.get("use_fragsmiles", False)
-    if use_safe and use_fragsmiles:
-        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
+    use_tsmiles = cfg.get("use_tsmiles", False)
+    tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
+    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
+    if n_active > 1:
+        raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")
 
     if use_safe:
         prefix = "canon_safe"
@@ -148,6 +153,9 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     elif use_fragsmiles:
         prefix = "canon_fragsmiles"
         label = "fragSMILES"
+    elif use_tsmiles:
+        prefix = f"canon_tsmiles_{tsmiles_slicer}_{tsmiles_variant}"
+        label = f"t-SMILES ({tsmiles_slicer}/{tsmiles_variant})"
     else:
         prefix = "canon_smiles"
         label = "SMILES"
@@ -211,6 +219,22 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
                 fragsmiles_encode_batch_fn,
                 batched=True,
                 desc="Encoding SMILES to fragSMILES",
+            )
+        elif use_tsmiles:
+            # ── Step 2a: Convert SMILES to t-SMILES once and cache ────────
+            print(f"Encoding SMILES to t-SMILES (slicer={tsmiles_slicer}, variant={tsmiles_variant})...")
+
+            def tsmiles_encode_batch_fn(examples):
+                return {
+                    smiles_col: encode_tsmiles_batch(
+                        examples[smiles_col], slicer=tsmiles_slicer, variant=tsmiles_variant
+                    )
+                }
+
+            splits = splits.map(
+                tsmiles_encode_batch_fn,
+                batched=True,
+                desc="Encoding SMILES to t-SMILES",
             )
         else:
             # ── Step 2a: Canonicalize SMILES with RDKit ─────────────────

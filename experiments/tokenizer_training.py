@@ -95,6 +95,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         "train_pcatt": TokenizerTrainer,
         "train_smirk_pcatt": TokenizerTrainer,
         "train_fragsmiles": TokenizerTrainer,
+        "train_tsmiles": TokenizerTrainer,
     }
 
     def __init__(
@@ -134,10 +135,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_smirk_pcatt(corpus, algo_cfg)
         elif tok_type == "fragsmiles":
             self._train_fragsmiles(corpus, algo_cfg)
+        elif tok_type == "tsmiles":
+            self._train_tsmiles(corpus, algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt', 'fragsmiles'"
+                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt', 'fragsmiles', 'tsmiles'"
             )
 
     def _train_ape(self, corpus, algo_cfg):
@@ -761,5 +764,108 @@ class TokenizerTrainingExperiment(BaseExperiment):
             token_ids = tokenizer.convert_tokens_to_ids(tokens)
             print(f"  {smi}")
             print(f"    -> Fragments: {tokens}")
+            print(f"    -> Token IDs: {token_ids}")
+            print(f"    -> {len(tokens)} tokens")
+
+    def _train_tsmiles(self, corpus, algo_cfg):
+        """Train a t-SMILES tokenizer from a precomputed t-SMILES corpus.
+
+        The vocabulary is built by splitting each t-SMILES string with the
+        structural regex r'&{1}|\\^{1}|[^&\\^]+' and counting token frequencies.
+        The final vocabulary is capped at vocab_size (most frequent first).
+        """
+        import re
+        from utils.tsmiles_tokenizer import TSMILESTokenizer
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+
+        special_tokens = [
+            tok_cfg.bos_token,
+            tok_cfg.pad_token,
+            tok_cfg.eos_token,
+            tok_cfg.unk_token,
+            tok_cfg.cls_token,
+            tok_cfg.sep_token,
+            tok_cfg.mask_token,
+        ]
+
+        tsmiles_re = re.compile(r"&{1}|\^{1}|[^&\^]+")
+
+        print(cyan("Training t-SMILES tokenizer..."))
+        print(cyan("  Target vocab size:"), vocab_size)
+        if not self.root_cfg.dataset.get("use_tsmiles", False):
+            print(cyan("  Warning:"), "dataset.use_tsmiles=false; expected precomputed t-SMILES corpus")
+
+        # ── Step 1: Build token vocabulary from corpus ───────────────────
+        print(cyan("  Building token vocabulary from corpus..."))
+        token_counts: dict[str, int] = {}
+
+        for tsmiles_str in corpus:
+            try:
+                tokens = tsmiles_re.findall(tsmiles_str)
+                for tok in tokens:
+                    if tok:
+                        token_counts[tok] = token_counts.get(tok, 0) + 1
+            except Exception:
+                pass
+
+        # Sort tokens by frequency (most common first)
+        sorted_tokens = sorted(token_counts.items(), key=lambda x: x[1], reverse=True)
+        print(cyan("  Unique tokens found:"), len(sorted_tokens))
+
+        # ── Step 2: Build vocabulary with special tokens first ───────────
+        vocab_dict: dict[str, int] = {}
+
+        for token in special_tokens:
+            if token not in vocab_dict:
+                vocab_dict[token] = len(vocab_dict)
+
+        for tok, _count in sorted_tokens:
+            if tok not in vocab_dict:
+                if len(vocab_dict) >= vocab_size:
+                    break
+                vocab_dict[tok] = len(vocab_dict)
+
+        print(cyan("  Final vocab size:"), len(vocab_dict))
+        print(cyan("  Special tokens:"), len(special_tokens))
+        print(cyan("  Fragment tokens:"), len(vocab_dict) - len(special_tokens))
+
+        # ── Step 3: Create and save tokenizer ────────────────────────────
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        vocab_file = save_dir / "vocab.json"
+        with open(vocab_file, "w", encoding="utf-8") as f:
+            json.dump(vocab_dict, f, ensure_ascii=False, indent=2)
+
+        # Save the sorted token list for reference
+        tokens_file = save_dir / "tokens.txt"
+        with open(tokens_file, "w", encoding="utf-8") as f:
+            for tok, count in sorted_tokens:
+                f.write(f"{tok}\t{count}\n")
+
+        tokenizer = TSMILESTokenizer(
+            vocab_file=str(vocab_file),
+            unk_token=tok_cfg.unk_token,
+            sep_token=tok_cfg.sep_token,
+            pad_token=tok_cfg.pad_token,
+            cls_token=tok_cfg.cls_token,
+            mask_token=tok_cfg.mask_token,
+            bos_token=tok_cfg.bos_token,
+            eos_token=tok_cfg.eos_token,
+        )
+
+        tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved tokenizer to:"), save_dir)
+
+        # ── Step 4: Print example tokenizations ──────────────────────────
+        examples = corpus[:5]
+        print(cyan("\nExample tokenizations:"))
+        for tsmiles_str in examples:
+            tokens = tokenizer.tokenize(tsmiles_str)
+            token_ids = tokenizer.convert_tokens_to_ids(tokens)
+            print(f"  {tsmiles_str}")
+            print(f"    -> Tokens: {tokens}")
             print(f"    -> Token IDs: {token_ids}")
             print(f"    -> {len(tokens)} tokens")

@@ -28,6 +28,7 @@ dependencies = [
     "scikit-learn>=1.7.2",
     "smilespe>=0.0.3",
     "smirk>=0.2.0",
+    "t-smiles",
     "torch>=2.10.0",
     "torchvision>=0.25.0",
     "tqdm>=4.67.3",
@@ -40,6 +41,7 @@ dependencies = [
 apetokenizer = { git = "https://github.com/mikemayuare/apetokenizer" }
 greedtok = { git = "https://github.com/ncduy0303/pcatt" }
 chemicalgof = { git = "https://github.com/ncduy0303/chemicalgof.git" }
+t-smiles = { git = "https://github.com/wglee-incerebro/t-SMILES" }
 
 [dependency-groups]
 dev = [
