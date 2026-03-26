@@ -20,6 +20,7 @@ from omegaconf import DictConfig
 from utils.print_utils import cyan
 from utils.safe_utils import encode_safe_batch
 from utils.fragsmiles_utils import encode_fragsmiles_batch
+from utils.tsmiles_utils import encode_tsmiles_batch
 
 from rdkit import Chem
 import logging
@@ -170,9 +171,13 @@ def load_molnet(cfg: DictConfig, tokenizer):
     use_safe = cfg.get("use_safe", False)
     safe_slicer = cfg.get("safe_slicer", "brics")
     use_fragsmiles = cfg.get("use_fragsmiles", False)
+    use_tsmiles = cfg.get("use_tsmiles", False)
+    tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
+    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
 
-    if use_safe and use_fragsmiles:
-        raise ValueError("Only one of dataset.use_safe and dataset.use_fragsmiles can be true.")
+    n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
+    if n_active > 1:
+        raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")
 
     if use_safe:
         mode_prefix = "canon_safe"
@@ -182,6 +187,10 @@ def load_molnet(cfg: DictConfig, tokenizer):
         mode_prefix = "canon_fragsmiles"
         label = "fragSMILES"
         print(cyan("  fragSMILES encoding:"), "enabled")
+    elif use_tsmiles:
+        mode_prefix = f"canon_tsmiles_{tsmiles_slicer}_{tsmiles_variant}"
+        label = f"t-SMILES ({tsmiles_slicer}/{tsmiles_variant})"
+        print(cyan("  t-SMILES encoding:"), f"enabled (slicer={tsmiles_slicer}, variant={tsmiles_variant})")
     else:
         mode_prefix = "canon_smiles"
         label = "SMILES"
@@ -197,6 +206,8 @@ def load_molnet(cfg: DictConfig, tokenizer):
             return encode_safe_batch(smiles, slicer=safe_slicer)
         if use_fragsmiles:
             return encode_fragsmiles_batch(smiles)
+        if use_tsmiles:
+            return encode_tsmiles_batch(smiles, slicer=tsmiles_slicer, variant=tsmiles_variant)
 
         logging.getLogger("rdkit").setLevel(logging.CRITICAL)
         canon = []

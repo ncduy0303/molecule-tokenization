@@ -9,3 +9,6 @@ seed: 42
 use_safe: false
 safe_slicer: "brics"
 use_fragsmiles: false
+use_tsmiles: false
+tsmiles_variant: "TSDY" # Options: TSSA, TSDY, TSID, TSIS, TSISD, TSISO, TSISR
+tsmiles_slicer: "brics" # Options: brics, mmpa
