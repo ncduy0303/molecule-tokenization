@@ -18,6 +18,8 @@ from typing import List, Literal
 import rdkit.Chem as Chem
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
+from utils.timeout_utils import EncodeTimeoutError, encoding_timeout
+
 from t_smiles.dataset.std_tokens import CTokens, STDTokens_Frag_File
 from t_smiles.dataset.graph.cnjt_mol import CNJTMolTree
 from t_smiles.dataset.graph.cnj_mol_util import CNJMolUtil
@@ -28,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 Slicer = Literal["brics", "mmpa"]
 Variant = Literal["TSSA", "TSDY", "TSID", "TSIS", "TSISD", "TSISO", "TSISR"]
+
+# Maximum seconds allowed for a single SMILES encoding before giving up.
+ENCODE_TIMEOUT_SECONDS: int = 60
+
 
 # Slicer + variant → Fragment_Alg mapping.
 # TSSA needs non-DY algs; TSDY/TSID/TSIS need DY algs.
@@ -143,17 +149,28 @@ def encode_tsmiles(smiles: str, slicer: Slicer = "brics", variant: Variant = "TS
         if not component:
             continue
         try:
-            cnjtmol = _encode_single_component(component, dec_alg)
+            with encoding_timeout(ENCODE_TIMEOUT_SECONDS):
+                cnjtmol = _encode_single_component(component, dec_alg)
 
-            if cnjtmol.mol is None:
-                raise RuntimeError(f"CNJTMolTree returned mol=None for component {component!r}")
+                if cnjtmol.mol is None:
+                    raise RuntimeError(f"CNJTMolTree returned mol=None for component {component!r}")
 
-            part = _extract_variant(cnjtmol, variant)
-            if not part:
-                raise RuntimeError(f"Empty {variant} result for component {component!r}")
+                part = _extract_variant(cnjtmol, variant)
+                if not part:
+                    raise RuntimeError(f"Empty {variant} result for component {component!r}")
 
-            encoded_parts.append(part.strip())
+                encoded_parts.append(part.strip())
 
+        except EncodeTimeoutError:
+            logger.warning(
+                "t-SMILES encoding timed out for component=%r (slicer=%s, variant=%s) "
+                "after %ds. Returning original SMILES.",
+                component,
+                slicer,
+                variant,
+                ENCODE_TIMEOUT_SECONDS,
+            )
+            return smiles
         except Exception as exc:
             logger.warning(
                 "t-SMILES encoding failed for component=%r (slicer=%s, variant=%s). "

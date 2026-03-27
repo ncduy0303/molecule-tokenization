@@ -15,6 +15,7 @@ import json
 import re
 import numpy as np
 from pathlib import Path
+from tqdm import tqdm
 
 from omegaconf import DictConfig
 
@@ -160,37 +161,54 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     raw_smiles_list = subset[smiles_col]
     del full_ds, subset
 
+    _CHUNK = 10_000
+    total = len(raw_smiles_list)
+
     if use_safe:
         # SAFE encoding produces canonical output directly — no RDKit step needed
-        print(f"Encoding {len(raw_smiles_list):,} SMILES to SAFE (slicer={safe_slicer})...")
-        processed_list = encode_safe_batch(raw_smiles_list, slicer=safe_slicer)
+        print(f"Encoding {total:,} SMILES to SAFE (slicer={safe_slicer})...")
+        processed_list = []
+        with tqdm(total=total, unit="mol", miniters=1) as pbar:
+            for start in range(0, total, _CHUNK):
+                chunk = raw_smiles_list[start : start + _CHUNK]
+                processed_list.extend(encode_safe_batch(chunk, slicer=safe_slicer))
+                pbar.update(len(chunk))
         print("SAFE encoding complete")
     elif use_fragsmiles:
         # fragSMILES encoding produces canonical output directly — no RDKit step needed
-        print(f"Encoding {len(raw_smiles_list):,} SMILES to fragSMILES...")
-        processed_list = encode_fragsmiles_batch(raw_smiles_list)
+        print(f"Encoding {total:,} SMILES to fragSMILES...")
+        processed_list = []
+        with tqdm(total=total, unit="mol", miniters=1) as pbar:
+            for start in range(0, total, _CHUNK):
+                chunk = raw_smiles_list[start : start + _CHUNK]
+                processed_list.extend(encode_fragsmiles_batch(chunk))
+                pbar.update(len(chunk))
         print("fragSMILES encoding complete")
     elif use_tsmiles:
         # t-SMILES encoding; falls back to original SMILES on failure
-        print(
-            f"Encoding {len(raw_smiles_list):,} SMILES to t-SMILES (slicer={tsmiles_slicer}, variant={tsmiles_variant})..."
-        )
-        processed_list = encode_tsmiles_batch(raw_smiles_list, slicer=tsmiles_slicer, variant=tsmiles_variant)
+        print(f"Encoding {total:,} SMILES to t-SMILES (slicer={tsmiles_slicer}, variant={tsmiles_variant})...")
+        processed_list = []
+        with tqdm(total=total, unit="mol", miniters=1) as pbar:
+            for start in range(0, total, _CHUNK):
+                chunk = raw_smiles_list[start : start + _CHUNK]
+                processed_list.extend(encode_tsmiles_batch(chunk, slicer=tsmiles_slicer, variant=tsmiles_variant))
+                pbar.update(len(chunk))
         print("t-SMILES encoding complete")
     else:
         # Canonicalize with RDKit
-        print(f"Canonicalizing {len(raw_smiles_list):,} SMILES strings...")
+        print(f"Canonicalizing {total:,} SMILES strings...")
         RDLogger.DisableLog("rdApp.*")  # type: ignore
         processed_list = []
-        for smi in raw_smiles_list:
-            try:
-                mol = Chem.MolFromSmiles(smi)
-                if mol is not None:
-                    processed_list.append(Chem.MolToSmiles(mol))
-                else:
+        with tqdm(total=total, unit="mol", miniters=1) as pbar:
+            for smi in raw_smiles_list:
+                try:
+                    mol = Chem.MolFromSmiles(smi)
+                    processed_list.append(Chem.MolToSmiles(mol) if mol is not None else smi)
+                except Exception:
                     processed_list.append(smi)
-            except Exception:
-                processed_list.append(smi)
+                if len(processed_list) % _CHUNK == 0:
+                    pbar.update(_CHUNK)
+            pbar.update(len(processed_list) % _CHUNK)  # remaining
         RDLogger.EnableLog("rdApp.*")  # type: ignore
 
     # ── Save corpus ─────────────────────────────────────────────────────
