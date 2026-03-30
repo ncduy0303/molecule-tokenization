@@ -96,6 +96,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         "train_smirk_pcatt": TokenizerTrainer,
         "train_fragsmiles": TokenizerTrainer,
         "train_tsmiles": TokenizerTrainer,
+        "train_ps": TokenizerTrainer,
     }
 
     def __init__(
@@ -137,10 +138,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_fragsmiles(corpus, algo_cfg)
         elif tok_type == "tsmiles":
             self._train_tsmiles(corpus, algo_cfg)
+        elif tok_type == "ps_fragsmiles":
+            self._train_ps(corpus_path, algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt', 'fragsmiles', 'tsmiles'"
+                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt', 'fragsmiles', 'tsmiles', 'ps_fragsmiles'"
             )
 
     def _train_ape(self, corpus, algo_cfg):
@@ -869,3 +872,189 @@ class TokenizerTrainingExperiment(BaseExperiment):
             print(f"    -> Tokens: {tokens}")
             print(f"    -> Token IDs: {token_ids}")
             print(f"    -> {len(tokens)} tokens")
+
+    def _train_ps(self, corpus_path, algo_cfg):
+        """Train a PS-fragSMILES tokenizer.
+
+        Stage 1: Train PS-VAE principal-subgraph vocab with graph BPE and save
+                 the raw tab-delimited PS vocab.
+        Stage 2: Encode corpus SMILES -> PS-fragSMILES via utils.ps.ps_encode.
+        Stage 3: Build a WordLevel-style vocab.json (token -> id) from
+                 chemicalgof.split token frequencies and save a
+                 PSFragSMILESTokenizer.
+        """
+        import chemicalgof
+        from utils.ps.mol_bpe_ring import graph_bpe, Tokenizer
+        from utils.ps_fragsmiles_utils import encode_ps_fragsmiles_batch
+        from utils.ps_fragsmiles_tokenizer import PSFragSMILESTokenizer
+
+        tok_cfg = algo_cfg.tokenizer
+        vocab_size = tok_cfg.vocab_size
+        kekulize = tok_cfg.get("kekulize", True)
+        min_frequency = tok_cfg.get("min_frequency", 10)
+        workers = tok_cfg.get("workers", 16)
+
+        print(cyan("Training PS principal-subgraph vocabulary..."))
+        print(cyan("  Vocab size:"), vocab_size)
+        print(cyan("  Kekulize:"), kekulize)
+        print(cyan("  Min ring freq:"), min_frequency)
+        print(cyan("  Workers:"), workers)
+        print(cyan("  Corpus:"), str(corpus_path))
+
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        vocab_path = save_dir / "vocab.txt"
+
+        graph_bpe(
+            fname=str(corpus_path),
+            vocab_len=vocab_size,
+            vocab_path=str(vocab_path),
+            cpus=workers,
+            kekulize=kekulize,
+            min_frequency=min_frequency,
+        )
+
+        print(cyan("Saved PS vocab to:"), vocab_path)
+
+        # Save a JSON index for raw PS subgraph vocabulary for inspection.
+        ps_vocab_json_path = save_dir / "ps_vocab.json"
+        ps_vocab_json: dict[str, int] = {}
+        with open(vocab_path, "r", encoding="utf-8") as fin:
+            lines = fin.read().strip().splitlines()
+        for line in lines[1:]:
+            token = line.split("\t", 1)[0]
+            if token not in ps_vocab_json:
+                ps_vocab_json[token] = len(ps_vocab_json)
+        with open(ps_vocab_json_path, "w", encoding="utf-8") as fout:
+            json.dump(ps_vocab_json, fout, ensure_ascii=False, indent=2)
+        print(cyan("Saved PS vocab JSON to:"), ps_vocab_json_path)
+
+        # Verify the vocab loads correctly and show example tokenizations
+        tokenizer = Tokenizer(str(vocab_path))
+        print(cyan("Loaded vocab size:"), len(tokenizer))
+
+        # Build PS-fragSMILES corpus and token frequency table for HF vocab.
+        print(cyan("Building PS-fragSMILES corpus and token frequencies..."))
+        ps_frag_corpus_path = save_dir / "corpus_ps_fragsmiles.txt"
+        token_counts: dict[str, int] = {}
+        sample_ps_frag: list[str] = []
+
+        batch_size = 1024
+        batch_smiles: list[str] = []
+        with open(corpus_path, "r", encoding="utf-8") as fin, open(
+            ps_frag_corpus_path, "w", encoding="utf-8"
+        ) as ps_out:
+            for line in fin:
+                smi = line.strip()
+                if not smi:
+                    continue
+                batch_smiles.append(smi)
+                if len(batch_smiles) < batch_size:
+                    continue
+
+                encoded_batch = encode_ps_fragsmiles_batch(batch_smiles, str(vocab_path))
+                for encoded in encoded_batch:
+                    ps_out.write(encoded + "\n")
+                    if len(sample_ps_frag) < 5:
+                        sample_ps_frag.append(encoded)
+                    try:
+                        fragments = [
+                            token
+                            for single_fragsmiles in encoded.split(";")
+                            for token in chemicalgof.split(single_fragsmiles)
+                            if token
+                        ]
+                        for tok in fragments:
+                            token_counts[tok] = token_counts.get(tok, 0) + 1
+                    except Exception:
+                        pass
+                batch_smiles = []
+
+            if batch_smiles:
+                encoded_batch = encode_ps_fragsmiles_batch(batch_smiles, str(vocab_path))
+                for encoded in encoded_batch:
+                    ps_out.write(encoded + "\n")
+                    if len(sample_ps_frag) < 5:
+                        sample_ps_frag.append(encoded)
+                    try:
+                        fragments = [
+                            token
+                            for single_fragsmiles in encoded.split(";")
+                            for token in chemicalgof.split(single_fragsmiles)
+                            if token
+                        ]
+                        for tok in fragments:
+                            token_counts[tok] = token_counts.get(tok, 0) + 1
+                    except Exception:
+                        pass
+
+        print(cyan("Saved PS-fragSMILES corpus to:"), ps_frag_corpus_path)
+        print(cyan("Unique PS-fragSMILES tokens:"), len(token_counts))
+
+        special_tokens = [
+            tok_cfg.bos_token,
+            tok_cfg.pad_token,
+            tok_cfg.eos_token,
+            tok_cfg.unk_token,
+            tok_cfg.cls_token,
+            tok_cfg.sep_token,
+            tok_cfg.mask_token,
+        ]
+
+        sorted_tokens = sorted(token_counts.items(), key=lambda x: x[1], reverse=True)
+        hf_vocab: dict[str, int] = {}
+        for token in special_tokens:
+            if token not in hf_vocab:
+                hf_vocab[token] = len(hf_vocab)
+
+        for token, _count in sorted_tokens:
+            if token in hf_vocab:
+                continue
+            if len(hf_vocab) >= vocab_size:
+                break
+            hf_vocab[token] = len(hf_vocab)
+
+        hf_vocab_path = save_dir / "vocab.json"
+        with open(hf_vocab_path, "w", encoding="utf-8") as fout:
+            json.dump(hf_vocab, fout, ensure_ascii=False, indent=2)
+
+        print(cyan("Saved HF tokenizer vocab to:"), hf_vocab_path)
+        print(cyan("Final HF vocab size:"), len(hf_vocab))
+
+        hf_tokenizer = PSFragSMILESTokenizer(
+            vocab_file=str(hf_vocab_path),
+            ps_vocab_file=str(vocab_path),
+            unk_token=tok_cfg.unk_token,
+            sep_token=tok_cfg.sep_token,
+            pad_token=tok_cfg.pad_token,
+            cls_token=tok_cfg.cls_token,
+            mask_token=tok_cfg.mask_token,
+            bos_token=tok_cfg.bos_token,
+            eos_token=tok_cfg.eos_token,
+        )
+        hf_tokenizer.save_pretrained(str(save_dir))
+        print(cyan("Saved PS-fragSMILES tokenizer to:"), save_dir)
+
+        examples = corpus_path.read_text().splitlines()[:5]
+        print(cyan("\nExample tokenizations:"))
+        for i, smi in enumerate(examples):
+            try:
+                mol = tokenizer.tokenize(smi)
+                subgraphs = (
+                    mol.get_smis_subgraphs()
+                    if not isinstance(mol, list)
+                    else [sg for frag in mol for sg in frag.get_smis_subgraphs()]
+                )
+                tokens = [sg[0] for sg in subgraphs]
+                print(f"  {smi}")
+                print(f"    -> {tokens}")
+                print(f"    -> {len(tokens)} subgraphs")
+
+                if i < len(sample_ps_frag):
+                    print(f"    -> PS-fragSMILES: {sample_ps_frag[i]}")
+                hf_tokens = hf_tokenizer.tokenize(smi)
+                hf_ids = hf_tokenizer.convert_tokens_to_ids(hf_tokens)
+                print(f"    -> HF tokens: {hf_tokens}")
+                print(f"    -> HF ids: {hf_ids}")
+            except Exception as e:
+                print(f"  {smi}  [tokenization failed: {e}]")
