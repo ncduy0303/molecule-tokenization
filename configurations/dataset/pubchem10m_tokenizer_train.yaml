@@ -13,4 +13,4 @@ safe_slicer: "brics"
 use_fragsmiles: false
 use_tsmiles: false
 tsmiles_variant: "TSDY" # Options: TSSA, TSDY, TSID, TSIS, TSISD, TSISO, TSISR
-slicer: "brics" # Options: brics, mmpa
+tsmiles_slicer: "brics" # Options: brics, mmpa
