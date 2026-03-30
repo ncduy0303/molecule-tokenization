@@ -96,7 +96,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         "train_smirk_pcatt": TokenizerTrainer,
         "train_fragsmiles": TokenizerTrainer,
         "train_tsmiles": TokenizerTrainer,
-        "train_ps": TokenizerTrainer,
+        "train_ps_fragsmiles": TokenizerTrainer,
     }
 
     def __init__(
