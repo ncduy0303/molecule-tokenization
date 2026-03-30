@@ -5,3 +5,4 @@ tokenizer:
   type: ps_fragsmiles
   kekulize: true
   min_frequency: 10
+  workers: 16

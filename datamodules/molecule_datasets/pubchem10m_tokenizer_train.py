@@ -84,7 +84,14 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         smiles_list = corpus_path.read_text().splitlines()
         if len(smiles_list) < corpus_size:
             raise RuntimeError(f"Cached corpus has {len(smiles_list):,} molecules but expected {corpus_size:,}")
-        smiles_list = smiles_list[:corpus_size]  # In case corpus.txt has more than corpus_size lines, trim it
+        if len(smiles_list) > corpus_size:
+            # Keep file-based training APIs in sync with in-memory trimming.
+            trimmed_path = data_dir / f"{corpus_path.stem}_{corpus_size}.txt"
+            smiles_list = smiles_list[:corpus_size]
+            trimmed_path.write_text("\n".join(smiles_list))
+            corpus_path = trimmed_path
+        else:
+            smiles_list = smiles_list[:corpus_size]
         print(f"Loaded {len(smiles_list):,} canonical {label} strings from cache")
         return smiles_list, corpus_path
 

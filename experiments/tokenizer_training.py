@@ -1007,7 +1007,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
             if token not in hf_vocab:
                 hf_vocab[token] = len(hf_vocab)
 
-        for token, _count in sorted_tokens:
+        for token, _ in sorted_tokens:
             if token in hf_vocab:
                 continue
             if len(hf_vocab) >= vocab_size:
@@ -1040,16 +1040,8 @@ class TokenizerTrainingExperiment(BaseExperiment):
         for i, smi in enumerate(examples):
             try:
                 mol = tokenizer.tokenize(smi)
-                subgraphs = (
-                    mol.get_smis_subgraphs()
-                    if not isinstance(mol, list)
-                    else [sg for frag in mol for sg in frag.get_smis_subgraphs()]
-                )
-                tokens = [sg[0] for sg in subgraphs]
                 print(f"  {smi}")
-                print(f"    -> {tokens}")
-                print(f"    -> {len(tokens)} subgraphs")
-
+                print(f"  {mol}")
                 if i < len(sample_ps_frag):
                     print(f"    -> PS-fragSMILES: {sample_ps_frag[i]}")
                 hf_tokens = hf_tokenizer.tokenize(smi)
