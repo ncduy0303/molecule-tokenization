@@ -123,6 +123,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
     data_dir = Path(cfg.data_dir)
     seed = cfg.seed
     max_length = cfg.max_length
+    num_proc = cfg.get("num_proc", 8)
 
     # ── Step 1: Download CSV ────────────────────────────────────────────
     df = _download_csv(dataset_name, data_dir)
@@ -201,25 +202,62 @@ def load_molnet(cfg: DictConfig, tokenizer):
     }
     all_cached = all(path.exists() for path in cache_paths.values())
 
-    def process_smiles_list(smiles: list[str]) -> list[str]:
-        if use_safe:
-            return encode_safe_batch(smiles, slicer=safe_slicer)
-        if use_fragsmiles:
-            return encode_fragsmiles_batch(smiles)
-        if use_tsmiles:
-            return encode_tsmiles_batch(smiles, slicer=tsmiles_slicer, variant=tsmiles_variant)
+    def process_split_with_map(smiles: list[str], split_name: str) -> list[str]:
+        split_ds = Dataset.from_dict({smi_col: smiles})
 
-        logging.getLogger("rdkit").setLevel(logging.CRITICAL)
-        canon = []
-        for smi in smiles:
-            try:
-                mol = Chem.MolFromSmiles(smi)
-                # If RDKit fails to parse, just keep the original string
-                canon.append(Chem.MolToSmiles(mol) if mol is not None else smi)
-            except Exception:
-                canon.append(smi)
+        if use_safe:
+            split_ds = split_ds.map(
+                lambda examples: {smi_col: encode_safe_batch(examples[smi_col], slicer=safe_slicer)},
+                batched=True,
+                num_proc=num_proc,
+                desc=f"Encoding {split_name} SMILES to SAFE",
+            )
+            return split_ds[smi_col]
+
+        if use_fragsmiles:
+            split_ds = split_ds.map(
+                lambda examples: {smi_col: encode_fragsmiles_batch(examples[smi_col])},
+                batched=True,
+                num_proc=num_proc,
+                desc=f"Encoding {split_name} SMILES to fragSMILES",
+            )
+            return split_ds[smi_col]
+
+        if use_tsmiles:
+            split_ds = split_ds.map(
+                lambda examples: {
+                    smi_col: encode_tsmiles_batch(
+                        examples[smi_col],
+                        slicer=tsmiles_slicer,
+                        variant=tsmiles_variant,
+                    )
+                },
+                batched=True,
+                num_proc=num_proc,
+                desc=f"Encoding {split_name} SMILES to t-SMILES",
+            )
+            return split_ds[smi_col]
+
+        def canonicalize_batch(examples):
+            logging.getLogger("rdkit").setLevel(logging.CRITICAL)
+            canon = []
+            for smi in examples[smi_col]:
+                try:
+                    mol = Chem.MolFromSmiles(smi)
+                    # If RDKit fails to parse, just keep the original string
+                    canon.append(Chem.MolToSmiles(mol) if mol is not None else smi)
+                except Exception:
+                    canon.append(smi)
+            return {smi_col: canon}
+
+        split_ds = split_ds.map(
+            canonicalize_batch,
+            batched=True,
+            num_proc=num_proc,
+            desc=f"Canonicalizing {split_name} SMILES with RDKit",
+        )
         logging.getLogger("rdkit").setLevel(logging.WARNING)
-        return canon
+        return split_ds[smi_col]
 
     index_map = {
         "train": train_idx,
@@ -235,11 +273,11 @@ def load_molnet(cfg: DictConfig, tokenizer):
             split_smiles_cache[split] = lines
             print(cyan(f"    {split}:"), f"{len(lines):,} {label} strings")
     else:
-        print(cyan(f"  Building cached {label} strings for MolNet splits..."))
+        print(cyan(f"  Building cached {label} strings for MolNet splits with Dataset.map (num_proc={num_proc})..."))
         for split, indices in index_map.items():
             sub = df.iloc[indices].reset_index(drop=True)
             smiles = sub[smi_col].tolist()
-            processed = process_smiles_list(smiles)
+            processed = process_split_with_map(smiles, split)
             split_smiles_cache[split] = processed
             cache_paths[split].write_text("\n".join(processed))
             print(cyan(f"    {split}:"), f"{len(processed):,} {label} strings")
@@ -257,39 +295,44 @@ def load_molnet(cfg: DictConfig, tokenizer):
 
         is_ape = isinstance(tokenizer, APETokenizer)
 
+        split_ds = Dataset.from_dict({smi_col: smiles, "labels": labels})
+
         if is_ape:
-            # APETokenizer does not support batched tokenization
-            all_input_ids = []
-            all_attention_mask = []
-            for smi in smiles:
+            # APETokenizer does not support batched tokenization, but we can still
+            # parallelize over individual examples with Dataset.map(num_proc=...).
+            def tokenize_ape_example(example):
                 enc = tokenizer(
-                    smi,
+                    example[smi_col],
                     max_length=max_length,
                     padding=False,
                 )
-                all_input_ids.append(enc["input_ids"])
-                all_attention_mask.append(enc["attention_mask"])
-            return Dataset.from_dict(
-                {
-                    "input_ids": all_input_ids,
-                    "attention_mask": all_attention_mask,
-                    "labels": labels,
+                return {
+                    "input_ids": enc["input_ids"],
+                    "attention_mask": enc["attention_mask"],
                 }
+
+            return split_ds.map(
+                tokenize_ape_example,
+                batched=False,
+                num_proc=num_proc,
+                remove_columns=[smi_col],
+                desc=f"Tokenizing {split_name} with APETokenizer",
             )
         else:
-            encodings = tokenizer(
-                smiles,
-                truncation=True,
-                max_length=max_length,
-                padding=False,
-                return_attention_mask=True,
-            )
-            return Dataset.from_dict(
-                {
-                    "input_ids": encodings["input_ids"],
-                    "attention_mask": encodings["attention_mask"],
-                    "labels": labels,
-                }
+            def tokenize_batch(examples):
+                return tokenizer(
+                    examples[smi_col],
+                    truncation=True,
+                    max_length=max_length,
+                    padding=False,
+                )
+
+            return split_ds.map(
+                tokenize_batch,
+                batched=True,
+                num_proc=num_proc,
+                remove_columns=[smi_col],
+                desc=f"Tokenizing {split_name}",
             )
 
     dataset = DatasetDict(

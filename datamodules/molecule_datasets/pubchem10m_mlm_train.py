@@ -39,6 +39,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     """
     from datasets import DatasetDict, load_dataset
 
+    num_proc = cfg.get("num_proc", 8)
     smiles_col = cfg.smiles_column
     max_length = cfg.max_length
     seed = cfg.seed
@@ -207,6 +208,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
                 safe_encode_batch_fn,
                 batched=True,
                 desc="Encoding SMILES to SAFE",
+                num_proc=num_proc,
             )
         elif use_fragsmiles:
             # ── Step 2a: Convert SMILES to fragSMILES once and cache ────
@@ -219,6 +221,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
                 fragsmiles_encode_batch_fn,
                 batched=True,
                 desc="Encoding SMILES to fragSMILES",
+                num_proc=num_proc,
             )
         elif use_tsmiles:
             # ── Step 2a: Convert SMILES to t-SMILES once and cache ────────
@@ -235,6 +238,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
                 tsmiles_encode_batch_fn,
                 batched=True,
                 desc="Encoding SMILES to t-SMILES",
+                num_proc=num_proc,
             )
         else:
             # ── Step 2a: Canonicalize SMILES with RDKit ─────────────────
@@ -257,6 +261,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
                 canonicalize_batch,
                 batched=True,
                 desc="Canonicalizing with RDKit",
+                num_proc=num_proc,
             )
 
             RDLogger.EnableLog("rdApp.*")  # type: ignore
@@ -291,6 +296,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         batched=not is_ape,  # APETokenizer does not support batched tokenization
         remove_columns=[smiles_col],
         desc="Tokenizing",
+        num_proc=num_proc,
     )
 
     # ── Step 4: Cache to disk ───────────────────────────────────────────
