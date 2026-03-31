@@ -1,0 +1,11 @@
+defaults:
+  - base_roberta
+
+tokenizer:
+  type: ps_fragsmiles
+  pretrained: "data/pretrained_tokenizers/CANONICAL_PS_FRAGSMILES_5K_20K_MF1"
+  # pretrained: "data/pretrained_tokenizers/CANONICAL_PS_FRAGSMILES_5K_20K_MF2"
+
+model:
+  pretrained: "data/pretrained_models/mlm/CANONICAL-PS-FRAGSMILES-5K-20K-MF1-1M-20epoch"
+  # pretrained: "data/pretrained_models/mlm/CANONICAL-PS-FRAGSMILES-5K-20K-MF2-1M-20epoch"
