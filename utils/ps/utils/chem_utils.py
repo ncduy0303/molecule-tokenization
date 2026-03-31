@@ -29,12 +29,13 @@ def mol2smi(mol, kekulize=False, canonical=True):
 
 def get_submol(mol, atom_indices, kekulize=False):
     if len(atom_indices) == 1:
-        atom_symbol = mol.GetAtomWithIdx(atom_indices[0]).GetSymbol()
-        if atom_symbol == "Si":
-            atom_symbol = "[Si]"
-        elif atom_symbol == "Na":
-            atom_symbol = "[Na+]"
-        return smi2mol(atom_symbol, kekulize)
+        atom_smi = Chem.MolFragmentToSmiles(
+            mol,
+            atomsToUse=[atom_indices[0]],
+            canonical=True,
+            kekuleSmiles=kekulize,
+        )
+        return smi2mol(atom_smi, kekulize)
     aid_dict = {i: True for i in atom_indices}
     edge_indices = []
     for i in range(mol.GetNumBonds()):
