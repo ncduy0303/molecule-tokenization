@@ -1,19 +1,14 @@
 from typing import Optional, Union
 from omegaconf import DictConfig
 import pathlib
-from lightning.pytorch.loggers.wandb import WandbLogger
 
 from .exp_base import BaseExperiment
-from .example_classification import ClassificationExperiment
-from .example_helloworld import HelloWorldExperiment
 from .tokenizer_benchmark import TokenizerBenchmarkExperiment
 from .tokenizer_training import TokenizerTrainingExperiment
 from .downstream_classification import DownstreamClassificationExperiment
 
 # each key has to be a yaml file under '[project_root]/configurations/experiment' without .yaml suffix
 exp_registry = dict(
-    example_classification=ClassificationExperiment,
-    example_helloworld=HelloWorldExperiment,
     tokenizer_benchmark=TokenizerBenchmarkExperiment,
     tokenizer_training=TokenizerTrainingExperiment,
     downstream_classification=DownstreamClassificationExperiment,
@@ -21,12 +16,12 @@ exp_registry = dict(
 
 
 def build_experiment(
-    cfg: DictConfig, logger: Optional[WandbLogger] = None, ckpt_path: Optional[Union[str, pathlib.Path]] = None
+    cfg: DictConfig, output_dir: Union[str, pathlib.Path], ckpt_path: Optional[Union[str, pathlib.Path]] = None
 ) -> BaseExperiment:
     """
     Build an experiment instance based on registry
     :param cfg: configuration file
-    :param logger: optional logger for the experiment
+    :param output_dir: Hydra output directory for this run
     :param ckpt_path: optional checkpoint path for saving and loading
     :return:
     """
@@ -36,4 +31,4 @@ def build_experiment(
             "Make sure you register it correctly in 'experiments/__init__.py' under the same name as yaml file."
         )
 
-    return exp_registry[cfg.experiment._name](cfg, logger, ckpt_path)
+    return exp_registry[cfg.experiment._name](cfg, output_dir, ckpt_path)

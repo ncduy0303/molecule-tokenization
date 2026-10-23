@@ -1,170 +1,107 @@
-# Project Instructions
+# Advanced Tokenization Methods for Molecular Foundation Models
 
-[Write your project-specific instructions here]
+NUS School of Computing Final Year Project by Nguyen Cao Duy, supervised by Dr. Bian Yatao. Project ID: H437020, academic year 2025-2026.
 
-If you find this research template helpful to you, please cite us as
+This repository benchmarks how molecular tokenization affects representation learning and molecular property prediction. It also explores fragment representations, including principal-subgraph fragmentation combined with fragSMILES.
 
-```
-@article{chen2025diffusion,
-  title={Diffusion forcing: Next-token prediction meets full-sequence diffusion},
-  author={Chen, Boyuan and Mart{\'\i} Mons{\'o}, Diego and Du, Yilun and Simchowitz, Max and Tedrake, Russ and Sitzmann, Vincent},
-  journal={Advances in Neural Information Processing Systems},
-  volume={37},
-  pages={24081--24125},
-  year={2025}
-}
-```
+## Project context
 
-# Infra instructions
+- [Continual Assessment report](reports/FYP_CA_Report.pdf): motivation, literature review, methodology, results, and proposed next steps.
+- [Continual Assessment slides](reports/FYP_CA_Slides.pdf): presentation overview.
 
-This repo is using [Boyuan Chen](https://boyuan.space/)'s research template [repo](https://github.com/buoyancy99/research-template). By its license, we just ask you to keep the above sentence and links in `README.md` and the `LICENSE` file to credit the author.
+The implemented pipeline is:
 
-All experiments can be launched via `python -m main +name=xxxx {options}` where you can find more details later in this article.
+1. Construct a tokenizer from a PubChem10M corpus.
+2. Pretrain a RoBERTa model with masked language modeling (MLM).
+3. Fine-tune and evaluate molecular property classification on MoleculeNet, with BBBP and HIV configuration files.
 
-For slurm clusters, we provide an extremely useful utility to help you run programs without engineering command or writing bash scripts.
-e.g. for mit_vision cluster, you can simply run `python -m main {options} cluster=mit_vision` on login node.
-It will automatically generate slurm scripts and run them for you on a compute node. You can append options like 
-`cluster.params.num_gpus=8` to command (see more in `configuration/cluster/base_slurm.yaml`) to change resources.
-It's also easy to add your own slurm by following the `Add slurm clusters` section.
+Supported families include BPE, PCATT, SMIRK and its GPE/PCATT extensions, APE, SPE, fragSMILES, t-SMILES, and PS-fragSMILES. SAFE is a dataset representation option.
 
 ## Setup
 
-Run `conda create python=3.10 -n {your_env_name}` to create environment.
-Run `conda activate {your_env_name}` to activate this environment.
-Run `pip install -r requirements.txt` to install all dependencies.
+Run commands from the repository root. Dependencies and Git sources are declared in [pyproject.toml](pyproject.toml), with resolved versions in [uv.lock](uv.lock).
 
-[Sign up](https://wandb.ai/site) a wandb account for cloud logging and checkpointing. In command line, run `wandb login` to login.
+```bash
+uv sync --locked
+source .venv/bin/activate
+```
 
-Then modify the wandb entity (account) in `configurations/config.yaml`.
+The project declares Python >=3.10. Some dependencies come from Git repositories, so installation requires Git and network access. Dataset loaders download PubChem or MoleculeNet data when their local caches are absent. Model training requires substantially more resources than inspecting configurations or constructing a small tokenizer.
 
-If using VScode, we recommend installing [Black Formatter](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter) for consistent auto-formatting with the original code.
+## Inspect a run without training
 
-## Run built-in example
+```bash
+python -m main --cfg job --resolve
+```
 
-Run an example machine-learning experiment with a specified dataset and algorithm:
-`python -m main +name=xxxx experiment=example_classification dataset=example_cifar10 algorithm=example_classifier`
+The default configuration selects BPE tokenizer construction. Actual runs require `+name=...`. W&B logging is disabled by default. For model runs with online logging, run `wandb login` and pass `wandb.mode=online wandb.entity=YOUR_ENTITY`.
 
-The files associated with this example are:
+## Run the pipeline
 
-<ul>
-  <li>algorithms/examples/classifier/classifier.py</li>
-  <li>configurations/algorithm/example_classifier.yaml</li>
-  <li>datamodules/example_classification/cifar10.py</li>
-  <li>configurations/dataset/example_cifar10.yaml</li>
-  <li>experiments/example_classification.py</li>
-  <li>configurations/experiment/example_classification.yaml</li>
-</ul>
+These BPE examples explicitly connect each stage's artifacts. Replace the illustrative output paths with the directories printed by your runs. Do not use `outputs/latest-run` for an earlier stage's input, because each new run updates that link.
 
-Run a generic example experiment (not necessarily ML):
-`python -m main +name=yyyy experiment=hello_world algorithm=hello_algo1`
+### Construct a tokenizer
 
-The files associated with this example are:
+```bash
+python -m main +name=bpe_tokenizer \
+  experiment=tokenizer_training dataset=pubchem10m_tokenizer_train \
+  algorithm=train_bpe
+```
 
-<ul>
-  <li>algorithms/examples/helloworld/example_algos.py</li>
-  <li>configurations/algorithm/example_helloworld_1.yaml</li>
-  <li>experiments/example_helloworld.py</li>
-  <li>configurations/experiment/example_helloworld.yaml</li>
-</ul>
+The tokenizer is saved under `outputs/<date>/<time>/tokenizer/`. The default corpus contains 2,000,000 molecules and the target vocabulary size is 5,000. A smaller run should use a separate cache directory, for example `dataset.corpus_size=1000 dataset.data_dir=data/smoke_tokenizer`. A first run can still download the full source dataset.
 
-Run a generic example experiment, with different algorithm:
-`python -m main +name=zzzz experiment=hello_world algorithm=hello_algo2`
+### Pretrain a molecular language model
 
-<ul>
-  <li>algorithms/examples/helloworld/example_algos.py</li>
-  <li>configurations/algorithm/example_helloworld_2.yaml</li>
-  <li>experiments/example_helloworld.py</li>
-  <li>configurations/experiment/example_helloworld.yaml</li>
-</ul>
+```bash
+python -m main +name=bpe_mlm \
+  experiment=tokenizer_benchmark dataset=pubchem10m_mlm_train \
+  algorithm=bpe_roberta \
+  algorithm.tokenizer.pretrained=outputs/TOKENIZER_DATE/TOKENIZER_TIME/tokenizer
+```
 
-## Modify for your own project
+The final model and tokenizer are saved under `outputs/<date>/<time>/final_checkpoint/`. Defaults specify 1,000,000 training, 100,000 validation, and 100,000 test molecules, with 20 training epochs. The model has 6 layers, 12 attention heads, hidden size 768, intermediate size 1536, and 514 position embeddings. Dataset tokenization truncates at 512 tokens.
 
-First, create a new repository with this template. Make sure the new repository has the name you want to use for wandb
-logging.
+### Fine-tune on BBBP or HIV
 
-Add your method and baselines in `algorithms` following the `algorithms/README.md` as well as the example code in
-`algorithms/examples/classifier/classifier.py`. An algorithm defines both the model and training loop, but we simplified many things for you:
-For pytorch experiments, write your algorithm as a [pytorch lightning](https://github.com/Lightning-AI/lightning)
-`pl.LightningModule` which has extensive
-[documentation](https://lightning.ai/docs/pytorch/stable/). For a quick start, read "Define a LightningModule" in this [link](https://lightning.ai/docs/pytorch/stable/starter/introduction.html). Finally, add a yaml config file to `configurations/algorithm` imitating that of `configurations/algorithm/example_classifier.yaml`, for each algorithm you added.
+```bash
+python -m main +name=bpe_bbbp \
+  experiment=downstream_classification dataset=molnet_bbbp \
+  algorithm=bpe_classifier \
+  algorithm.tokenizer.pretrained=outputs/TOKENIZER_DATE/TOKENIZER_TIME/tokenizer \
+  algorithm.model.pretrained=outputs/MLM_DATE/MLM_TIME/final_checkpoint
+```
 
-(If doing machine learning) Add your dataset in `datamodules` following the `datamodules/README.md` as well as the example code in
-`datamodules/classification.py`. Finally, add a yaml config file to `configurations/dataset` imitating that of
-`configurations/dataset/example_cifar10.yaml`, for each dataset you added.
+Use `dataset=molnet_hiv` for HIV. The experiment evaluates ROC-AUC, selects the best validation checkpoint, and saves it under `best_model/`. The default training limit is 5 epochs with early stopping.
 
-Add your experiment in `experiments` following the `experiments/README.md` or following the example code in
-`experiments/exp_classification.py`. Then register your experiment in `experiments/__init__.py`. Usually, an experiment is just a registration of algorithms and datasets
-so your definition would be very short if you inherit the base class. A training_step is not defined via `experiments` but via `algorithms` instead.
-Finally, add a yaml config file to `configurations/experiment` imitating that of
-`configurations/experiment/example_classification.yaml`, for each experiment you added.
+For evaluation of a saved classifier, use the same tokenizer and dataset settings, set `'experiment.tasks=[evaluation]'`, and add `+algorithm.model.finetuned=outputs/CLASSIFIER_DATE/CLASSIFIER_TIME/best_model`. For MLM evaluation, use `'experiment.tasks=[evaluation]'` with `+algorithm.model.pretrained=outputs/MLM_DATE/MLM_TIME/final_checkpoint` and the matching tokenizer.
 
-Modify `configurations/config.yaml` to set `algorithm` to the yaml file you want to use in `configurations/algorithm`;
-set `experiment` to the yaml file you want to use in `configurations/experiment`; set `dataset` to the yaml file you
-want to use in `configurations/dataset`, or to `null` if no dataset is needed; Notice the fields should not contain the
-`.yaml` suffix.
+## Configuration and reproducibility
 
-You are all set!
+- [Configuration guide](configurations/README.md) lists compatible experiment, dataset, and algorithm choices.
+- Existing algorithm presets often point to local `data/pretrained_tokenizers/` and `data/pretrained_models/` artifacts. These artifacts are not included in Git. Override paths for your own runs.
+- Use matching representation settings and tokenizer vocabulary throughout the pipeline. A SAFE-trained tokenizer should receive SAFE data, for example.
+- MLM excludes the source-row indices in `dataset.tokenizer_indices_path`. Prepare the tokenizer corpus first and point this field at its `subset_indices.json` when using a non-default corpus directory. Both stages must use the same source and `dataset.hf_revision`. This guarantees disjoint source rows, not deduplication of chemically identical molecules in different source rows.
+- Cached indices, processed strings, and word counts require matching provenance and checksums. Legacy or incompatible caches fail without being overwritten. Use fresh directories for new experiments; see [data migration notes](data/README.md).
+- Use `resume=/absolute/path/to/checkpoint-N` to restore a full local Hugging Face Trainer checkpoint. `load` and W&B run IDs are rejected. Final `final_checkpoint/` and `best_model/` exports contain model artifacts, not complete resume state. See [resume instructions](experiments/README.md).
 
-`cd` into your project root. Now you can launch your new experiment with `python main.py +name=example_name`. You can run baselines or
-different datasets by add arguments like `algorithm=xxx` or `dataset=xxx`. You can also override any `yaml` configurations by following the next section.
+## Repository map
 
-One special note, if your want to define a new task for your experiment, (e.g. other than `training` and `test`) you can define it as a method in your experiment class (e.g. the `main` task in `experiments/example_helloworld.py`) and use `experiment.tasks=[task_name]` to run it. Let's say you have a `generate_dataset` task before the task `training` and you implemented it in experiment class, you can then run `python -m main +name xxxx experiment.tasks=[generate_dataset,training]` to execute it before training.
+| Location                                    | Purpose                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------ |
+| [main.py](main.py)                          | Hydra entry point, output directories, local or Slurm dispatch                 |
+| [experiments/](experiments/README.md)       | Pipeline orchestration and Hugging Face training/evaluation                    |
+| [algorithms/](algorithms/README.md)         | Tokenizer and RoBERTa model construction                                       |
+| [datamodules/](datamodules/README.md)       | Corpus sampling, representation conversion, dataset splits                     |
+| [utils/](utils/README.md)                   | Custom tokenizers, molecular encoders, principal-subgraph code, infrastructure |
+| [configurations/](configurations/README.md) | Hydra settings for each pipeline stage                                         |
+| [scripts/](scripts/README.md)               | Project Slurm wrappers and batch experiment helpers                            |
+| [data/](data/README.md)                     | Local caches and saved artifacts, excluded from Git except documentation       |
+| [reports/](reports/README.md)               | CA report and slides                                                           |
 
-## Pass in arguments
+`archive/` is an ignored local research archive. It is not part of the maintained execution path. Existing local data and archived work are preserved.
 
-We use [hydra](https://hydra.cc) instead of `argparse` to configure arguments at every code level. You can both write a static config in `configuration` folder or, at runtime,
-[override part of yur static config](https://hydra.cc/docs/tutorials/basic/your_first_app/simple_cli/) with command line arguments.
+## Template attribution
 
-For example, arguments `algorithm=example_classifier experiment.lr=1e-3` will override the `lr` variable in `configurations/experiment/example_classifier.yaml`. The argument `wandb.mode` will override the `mode` under `wandb` namesspace in the file `configurations/config.yaml`. There is also [nested override](https://github.com/facebookresearch/hydra/issues/2798): e.g. the option `algorithm/backbone=resnet` will set the field `algorithm.backbone` to the file `configurations/algorithm/backbone/resnet.yaml` (doesn't exist in the repo, just as an example).
+This repo is using [Boyuan Chen](https://boyuan.space/)'s research template [repo](https://github.com/buoyancy99/research-template). By its license, you must keep the above sentence and this setence in `README.md` and the `LICENSE` file to credit the author.
 
-All static config and runtime override will be logged to cloud automatically.
-
-## Resume a checkpoint & logging
-
-For machine learning experiments, all checkpoints and logs are logged to cloud automatically so you can resume them on another server. Simply append `resume={wandb_run_id}` to your command line arguments to resume it. The run_id can be founded in a url of a wandb run in wandb dashboard. By default, latest checkpoint in a run is stored indefinitely and earlier checkpoints in the run will be deleted after 5 days to save your storage.
-
-On the other hand, sometimes you may want to start a new run with different run id but still load a prior ckpt. This can be done by setting the `load={wandb_run_id / ckpt path}` flag.
-
-## Load a checkpoint to eval
-
-The argument `experiment.tasks=[task_name1,task_name2]` (note the `[]` brackets here needed) allows to select a sequence of tasks to execute, such as `training`, `validation` and `test`. Therefore, for validating a machine learning ckpt, you may run `python -m main load={your_wandb_run_id} experiment.tasks=[validation]`.
-
-More generally, the task names are the corresponding method names of your experiment class. For `BaseLightningExperiment`, we already defined three methods `training`, `validation` and `test` for you, but you can also define your own tasks by creating methods to your experiment class under intended task names.
-
-## Debug
-
-We provide a useful debug flag which you can enable by `python main.py debug=True`. This will enable numerical error tracking as well as setting `cfg.debug` to `True` for your experiments, algorithms and datasets class. However, this debug flag will make ML code very slow as it automatically tracks all parameter / gradients!
-
-## Hyperparameter Sweep
-
-Launch hyperparameter sweep via: `wandb sweep configurations/sweep/example_sweep.yaml`
-Then, launch sweep agents on different servers by running the command printed by the controller (e.g., `wandb agent <agent_id>`).
-
-## Add slurm clusters
-If you are from an academic institute, feel free to create a pull request to add your school's cluster to our repo.
-
-It's very easy to add your own slurm clusters via adding a yaml file in `configurations/cluster`. You can take a look
-at `configurations/cluster/mit_vision.yaml` for example. For multi-node training, `configurations/cluster/harvard_fas.yaml` is a good example.
-Some cluster has extra security and has login node offline, such as mit supercloud, the script will still automatically sync wandb logging to cloud with <1min latency if you set one flags following `configurations/cluster/mit_supercloud.yaml`. 
-
-
-## Feature Roadmap
-
-| **Features**                      | **This repo**      |
-| --------------------------------- | ------------------ |
-| README level documentation        | :heavy_check_mark: |
-| Examples (ML & Non ML)            | :heavy_check_mark: |
-| Cloud checkpoint save / load      | :heavy_check_mark: |
-| Cloud logging                     | :heavy_check_mark: |
-| Hyper-parameter logging           | :heavy_check_mark: |
-| Static yaml configuration         | :heavy_check_mark: |
-| Yaml config override by arugment  | :heavy_check_mark: |
-| Submit UI for MIT cluster         | :heavy_check_mark: |
-| Distributed training              | :heavy_check_mark: |
-| Low precision training            | :heavy_check_mark: |
-| Distributed hyper-parameter sweep | :heavy_check_mark: |
-| Debug mode                        | :heavy_check_mark: |
-| PEP 8 Style                       | :heavy_check_mark: |
-| Type hints                        | :heavy_check_mark: |
-| Wiki style documentation          | :x:                |
-| Unit test                         | :x:                |
+See [LICENSE](LICENSE). The molecular experiments retain the template's Hydra entry point and base task dispatch, but use Hugging Face Trainer rather than the removed example Lightning training stack.

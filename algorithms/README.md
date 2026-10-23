@@ -1,21 +1,20 @@
-# algorithms
+# Molecular model construction
 
-`algorithms` folder is designed to contain implementation of algorithms or models.
-Content in `algorithms` can be loosely grouped components (e.g. models) or an algorithm has already has all
-components chained together (e.g. Lightning Module, RL algo).
-You should create a folder name after your own algorithm or baselines in it.
+The active algorithms are small wrappers around Hugging Face tokenizers and RoBERTa models. Hugging Face Trainer runs the optimization loop in `experiments/`.
 
-Two example can be found in `examples` subfolder.
+| Module                        | Responsibility                                                                                                                           |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `tokenizer_benchmark/algo.py` | `MoleculeMLMAlgo` loads a tokenizer and builds `RobertaForMaskedLM`, either from configuration or pretrained weights.                    |
+| `downstream_finetune/algo.py` | `MoleculeClassificationAlgo` loads a tokenizer, then builds `RobertaForSequenceClassification` once the dataset's target count is known. |
 
-The `common` subfolder is designed to contain general purpose classes that's useful for many projects, e.g MLP.
+Tokenizer construction itself lives in `experiments/tokenizer_training.py`. Its `TokenizerTrainer` holds configuration and does not construct a neural model.
 
-You should not run any `.py` file from algorithms folder.
-Instead, you write unit tests / debug python files in `debug` and launch script in `experiments`.
+Both model wrappers dispatch on `algorithm.tokenizer.type`: `auto`, `smirk`, `ape`, `pcatt`, `spe`, `smirk_pcatt`, `fragsmiles`, `ps_fragsmiles`, or `tsmiles`. `auto` uses Hugging Face AutoTokenizer, including locally trained BPE tokenizers. Custom tokenizer implementations live in [utils](../utils/README.md).
 
-You are discouraged from putting visualization utilities in algorithms, as those should go to `utils` in project root.
+## Adding a method
 
-Each algorithm class takes in a DictConfig file `cfg` in its `__init__`, which allows you to pass in arguments via configuration file in `configurations/algorithm` or [command line override](https://hydra.cc/docs/tutorials/basic/your_first_app/simple_cli/).
-
----
-
-This repo is forked from [Boyuan Chen](https://boyuan.space/)'s research template [repo](https://github.com/buoyancy99/research-template). By its MIT license, you must keep the above sentence in `README.md` and the `LICENSE` file to credit the author.
+- Add its tokenizer loading branch to both wrappers if it needs pretraining and downstream evaluation.
+- Add the relevant YAML files under `configurations/algorithm/`.
+- Register the YAML names in the appropriate experiment's `compatible_algorithms` mapping.
+- For a new tokenizer construction method, also add its training dispatch and implementation to `TokenizerTrainingExperiment`.
+- Check special-token IDs, vocabulary size, saved-tokenizer reload behavior, and consistency between training and evaluation tokenization.

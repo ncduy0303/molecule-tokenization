@@ -1,16 +1,20 @@
-# configuration parsing starts here
+# Default workflow: construct a BPE tokenizer on PubChem10M.
+# Select all three groups explicitly when switching pipeline stages.
 defaults:
-  - experiment: example_classification # experiment yaml file name in configurations/experiments folder [fixme]
-  - dataset: example_cifar10 # dataset yaml file name in configurations/dataset folder [fixme]
-  - algorithm: example_classifier # algorithm yaml file name in configurations/algorithm folder [fixme]
-  - cluster: null # optional, cluster yaml file name in configurations/cluster folder. Leave null for local compute
+  - experiment: tokenizer_training
+  - dataset: pubchem10m_tokenizer_train
+  - algorithm: train_bpe
+  - cluster: null
+  - _self_
 
-debug: false # global debug flag will be passed into configuration of experiment, dataset and algorithm
+debug: false
 
 wandb:
-  entity: ncduy0303 # wandb account name / organization name [fixme]
-  project: null # wandb project name; if not provided, defaults to root folder name [fixme]
-  mode: online # set wandb logging to online, offline or dryrun
+  entity: ncduy0303 # Override with your own account for online logging.
+  project: molecule-tokenization
+  mode: disabled # Set online or offline for Hugging Face Trainer logging.
 
-resume: null # wandb run id to resume logging and loading checkpoint from
-load: null # wanmdb run id containing checkpoint or a path to a checkpoint file 
+# Legacy template checkpoint options. Molecular Trainers do not resume from these.
+# Use algorithm.model.pretrained / model.finetuned for saved HF models.
+resume: null
+load: null

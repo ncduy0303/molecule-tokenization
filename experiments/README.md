@@ -1,19 +1,23 @@
-# experiments
+# Molecular experiments
 
-`experiments` folder contains code of experiments. Each file in the experiment folder represents a certain type of
-benchmark specific to a project. Such experiment can be instantiated with a certain dataset and a certain algorithm.
+`main.py` selects an experiment through `exp_registry` in `__init__.py`. Each experiment inherits `BaseExperiment`, which stores the configuration/output directory, builds an algorithm from its registry, and invokes methods listed in `experiment.tasks`.
 
-You should create a new `.py` file for your experiment,  
-inherent from any suitable base classes in `experiments/exp_base.py`,
-and then register your new experiment in `experiments/__init__.py`.
+| Experiment                  | Tasks                    | Inputs                                        | Outputs within the run directory   |
+| --------------------------- | ------------------------ | --------------------------------------------- | ---------------------------------- |
+| `tokenizer_training`        | `training`               | PubChem tokenizer corpus and `train_*` config | `tokenizer/`                       |
+| `tokenizer_benchmark`       | `training`, `evaluation` | PubChem MLM splits and `*_roberta` config     | `final_checkpoint/` after training |
+| `downstream_classification` | `training`, `evaluation` | MoleculeNet data and `*_classifier` config    | `best_model/` after training       |
 
-You run an experiment by running `python -m main [options]` in the root directory of the
-project. You should not log any data in this folder, but storing them under `outputs` under root project
-directory.
+## Execution flow
 
-This folder is only intend to contain formal experiments. For debug code and unit tests, put them under `debug` folder.
-For scripts that's not meant to be an experiment please use `scripts` folder.
+- `TokenizerTrainingExperiment` dispatches tokenizer construction by `algorithm.tokenizer.type`. It supports BPE, APE, SPE, SMIRK, SMIRK-GPE, PCATT, SMIRK-PCATT, fragSMILES, t-SMILES, and PS-fragSMILES.
+- `TokenizerBenchmarkExperiment` constructs the model/tokenizer, loads tokenized PubChem splits, and uses dynamic MLM masking through `DataCollatorForLanguageModeling`. Training includes validation and final test evaluation.
+- `DownstreamClassificationExperiment` loads MoleculeNet data, infers the target count, constructs a classification head, and uses ROC-AUC for checkpoint selection and early stopping. It evaluates validation and test splits after training.
+- The two model experiments configure W&B through environment variables and Hugging Face Trainer. Tokenizer construction prints progress and saves files locally.
 
----
+## Loading and evaluation
 
-This repo is forked from [Boyuan Chen](https://boyuan.space/)'s research template [repo](https://github.com/buoyancy99/research-template). By its MIT license, you must keep the above sentence in `README.md` and the `LICENSE` file to credit the author.
+- `algorithm.model.pretrained` initializes a model from saved weights.
+- `algorithm.model.finetuned` loads an already fine-tuned classifier, including its classification head.
+
+Use the complete commands in the [root README](../README.md). Select compatible groups using the [configuration guide](../configurations/README.md).

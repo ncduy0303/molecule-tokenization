@@ -1,11 +1,32 @@
-The `datamodules` folder is used to contain dataset code or environment code.
-Don't store actual data like images here! For those, please use the `data` folder instead of `datamodules`.
+# Molecular datasets
 
-Create a folder to create your own pytorch dataset definition. Then, update the `__init__.py`
-at every level to register all datasets.
+The loaders in `molecule_datasets/` prepare strings and labels for the three project stages.
 
-Each dataset class takes in a DictConfig file `cfg` in its `__init__`, which allows you to pass in arguments via configuration file in `configurations/dataset` or [command line override](https://hydra.cc/docs/tutorials/basic/your_first_app/simple_cli/).
+| Module                          | Input and behavior                                                                                           | Return value                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| `pubchem10m_tokenizer_train.py` | Samples valid PubChem molecules, caches indices and strings, optionally constructs PCATT word counts         | Corpus list and text-file path                |
+| `pubchem10m_mlm_train.py`       | Samples PubChem train/validation/test indices, caches strings, applies the selected tokenizer                | Hugging Face `DatasetDict`                    |
+| `molnet.py`                     | Downloads MoleculeNet CSVs, drops rows with missing selected targets, splits data, caches strings, tokenizes | Hugging Face `DatasetDict` with label vectors |
 
----
+`molecule_datasets/__init__.py` registers `pubchem10m_mlm_train` for the MLM experiment. Tokenizer construction and downstream classification call their loaders directly.
 
-This repo is forked from [Boyuan Chen](https://boyuan.space/)'s research template [repo](https://github.com/buoyancy99/research-template). By its MIT license, you must keep the above sentence in `README.md` and the `LICENSE` file to credit the author.
+## Representations
+
+- Default input is RDKit-canonicalized SMILES.
+- `dataset.use_safe=true` selects SAFE, with `dataset.safe_slicer` controlling fragmentation.
+- `dataset.use_fragsmiles=true` selects precomputed fragSMILES strings.
+- `dataset.use_tsmiles=true` selects t-SMILES, with `dataset.tsmiles_variant` and `dataset.tsmiles_slicer` controlling encoding.
+- Only one of these representation flags may be enabled.
+- PS-fragSMILES takes SMILES and performs its own learned decomposition inside its tokenizer. Leave all representation flags false for this method.
+
+## MoleculeNet coverage
+
+- BBBP uses target `p_np`; HIV uses `HIV_active`. Both use DeepChem scaffold splitting with train/validation/test fractions 0.8/0.1/0.1.
+- The loader also has ClinTox (`CT_TOX`) and Tox21 (`SR-p53`) branches using random splitting. They do not have dedicated YAML presets and are single-target selections, not full multitask benchmarks.
+- Invalid strings can survive canonicalization through fallback behavior. Do not assume every downstream row has been validated or converted successfully.
+
+## Reproducibility
+
+The tokenizer and MLM samplers each use their own seeded permutation of the same PubChem source. Separate cache directories do not guarantee disjoint samples. Cross-stage exclusion is not implemented.
+
+Cache reuse does not check all sampling and representation settings. Preserve existing caches for old runs and use a fresh `dataset.data_dir` when changing corpus size, seed, source, or SAFE slicer. See [data storage](../data/README.md).

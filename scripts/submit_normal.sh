@@ -13,7 +13,7 @@ TIME="03:00:00"       # +200 for jobs 15 mins or less
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <run_name> [hydra overrides...]"
-    echo "Example: $0 my_run experiment=example_classification dataset=example_cifar10 algorithm=example_classifier"
+    echo "Example: $0 my_run experiment=tokenizer_benchmark dataset=pubchem10m_mlm_train algorithm=bpe_roberta"
     exit 1
 fi
 

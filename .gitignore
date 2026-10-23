@@ -152,6 +152,9 @@ checkpoints
 # Pycharm setting
 .idea/
 data/*
+!data/README.md
 
 # archive
 archive/
+# macOS metadata
+.DS_Store
