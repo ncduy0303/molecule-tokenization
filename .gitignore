@@ -152,3 +152,6 @@ checkpoints
 # Pycharm setting
 .idea/
 data/*
+
+# archive
+archive/
