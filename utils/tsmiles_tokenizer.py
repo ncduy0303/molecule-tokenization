@@ -28,6 +28,11 @@ VOCAB_FILES_NAMES = {"vocab_file": "vocab.json"}
 _TSMILES_RE = re.compile(r"&{1}|\^{1}|[^&\^]+")
 
 
+def split_tsmiles_tokens(text, preserve_components=False):
+    pattern = r"[&^.]|[^&^.]+" if preserve_components else _TSMILES_RE
+    return [token for token in re.findall(pattern, text) if token]
+
+
 def load_vocab(vocab_file: str) -> collections.OrderedDict:
     """Load vocabulary from JSON file."""
     with open(vocab_file, "r", encoding="utf-8") as f:
@@ -62,6 +67,7 @@ class TSMILESTokenizer(PreTrainedTokenizer):
             raise ValueError(f"Can't find a vocabulary file at path '{vocab_file}'.")
 
         self.vocab = load_vocab(vocab_file)
+        self.preserve_components = kwargs.get("preserve_components", False)
         self.ids_to_tokens = OrderedDict([(ids, tok) for tok, ids in self.vocab.items()])
 
         super().__init__(
@@ -90,7 +96,7 @@ class TSMILESTokenizer(PreTrainedTokenizer):
         separators is a single fragment token.
         """
         try:
-            tokens = [m for m in _TSMILES_RE.findall(text) if m]
+            tokens = split_tsmiles_tokens(text, self.preserve_components)
             return tokens if tokens else [self.unk_token]  # type: ignore
         except Exception:
             return [self.unk_token]  # type: ignore

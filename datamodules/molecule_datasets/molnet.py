@@ -23,6 +23,7 @@ from utils.cache_utils import (
     file_digest,
     value_digest,
     representation_identity,
+    validate_tokenizer_representation,
     validate_indices,
     cache_error,
 )
@@ -133,6 +134,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
     data_dir = Path(cfg.data_dir)
     seed = cfg.seed
     max_length = cfg.max_length
+    validate_tokenizer_representation(cfg, tokenizer)
     num_proc = cfg.get("num_proc", 8)
 
     # ── Step 1: Download CSV ────────────────────────────────────────────
@@ -198,7 +200,11 @@ def load_molnet(cfg: DictConfig, tokenizer):
     use_fragsmiles = cfg.get("use_fragsmiles", False)
     use_tsmiles = cfg.get("use_tsmiles", False)
     tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
-    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    tsmiles_slicer = "exocyclic" if cfg.get("fragmentation") == "exocyclic" else cfg.get("tsmiles_slicer", "brics")
+    shared_options = {
+        "fragmentation": cfg.get("fragmentation", None),
+        "ps_merges_path": cfg.get("ps_merges_path", None),
+    }
 
     n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
     if n_active > 1:
@@ -247,7 +253,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
 
         if use_fragsmiles:
             split_ds = split_ds.map(
-                lambda examples: {smi_col: encode_fragsmiles_batch(examples[smi_col])},
+                lambda examples: {smi_col: encode_fragsmiles_batch(examples[smi_col], **shared_options)},
                 batched=True,
                 num_proc=num_proc,
                 desc=f"Encoding {split_name} SMILES to fragSMILES",
@@ -261,6 +267,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
                         examples[smi_col],
                         slicer=tsmiles_slicer,
                         variant=tsmiles_variant,
+                        **shared_options,
                     )
                 },
                 batched=True,

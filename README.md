@@ -17,6 +17,11 @@ The implemented pipeline is:
 
 Supported families include BPE, PCATT, SMIRK and its GPE/PCATT extensions, APE, SPE, fragSMILES, t-SMILES, and PS-fragSMILES. SAFE is a dataset representation option.
 
+For matched-fragmentation experiments, see the [shared exocyclic fragmentation
+runbook](docs/SHARED_FRAGMENTATION.md). It provides fragSMILES, TSID and TSDY
+from the same partition, with optional reusable PS-style merges, cluster commands,
+and reconstruction audits.
+
 ## Setup
 
 Run commands from the repository root. Dependencies and Git sources are declared in [pyproject.toml](pyproject.toml), with resolved versions in [uv.lock](uv.lock).

@@ -53,6 +53,7 @@ class FragSMILESTokenizer(PreTrainedTokenizer):
             raise ValueError(f"Can't find a vocabulary file at path '{vocab_file}'.")
 
         self.vocab = load_vocab(vocab_file)
+        self.preserve_components = kwargs.get("preserve_components", False)
         self.ids_to_tokens = OrderedDict([(ids, tok) for tok, ids in self.vocab.items()])
 
         super().__init__(
@@ -81,7 +82,9 @@ class FragSMILESTokenizer(PreTrainedTokenizer):
 
         try:
             # https://github.com/f48r1/chemicalgof/issues/1
-            fragments = [token for single_fragsmiles in text.split(";") for token in chemicalgof.split(single_fragsmiles)]
+            from utils.fragsmiles_utils import split_fragsmiles_tokens
+
+            fragments = split_fragsmiles_tokens(text, self.preserve_components)
 
             # Convert fragments to tokens
             tokens = [frag for frag in fragments if frag]
@@ -105,6 +108,14 @@ class FragSMILESTokenizer(PreTrainedTokenizer):
         # Because fragments are from an *encoded* string, we must attempt to reverse the process.
         joined_encoded = "".join(tokens)
         try:
+            if self.preserve_components:
+                components = [[]]
+                for token in tokens:
+                    if token == ";":
+                        components.append([])
+                    else:
+                        components[-1].append(token)
+                return ".".join(chemicalgof.decode(component) for component in components)
             return chemicalgof.decode(joined_encoded)
         except Exception:
             # Fallback (useful if special tokens are passed into this method)

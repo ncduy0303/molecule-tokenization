@@ -11,8 +11,18 @@ from typing import List
 
 from rdkit import Chem
 
-
 logger = logging.getLogger(__name__)
+
+
+def split_fragsmiles_tokens(text, preserve_components=False):
+    import chemicalgof
+
+    tokens = []
+    for i, component in enumerate(text.split(";")):
+        if i and preserve_components:
+            tokens.append(";")
+        tokens.extend(token for token in chemicalgof.split(component) if token)
+    return tokens
 
 
 def encode_fragsmiles(smiles: str) -> str:
@@ -51,6 +61,14 @@ def encode_fragsmiles(smiles: str) -> str:
         return smiles
 
 
-def encode_fragsmiles_batch(smiles_list: List[str]) -> List[str]:
+def encode_fragsmiles_batch(smiles_list: List[str], fragmentation=None, ps_merges_path=None) -> List[str]:
     """Convert a list of SMILES strings to fragSMILES strings."""
+    if fragmentation == "exocyclic":
+        from utils.shared_fragmentation import encode_shared
+        from utils.shared_ps import load_model
+
+        model = load_model(ps_merges_path) if ps_merges_path else None
+        return [encode_shared(smi, "fragsmiles", model) for smi in smiles_list]
+    if fragmentation is not None or ps_merges_path:
+        raise ValueError("PS merges require shared exocyclic fragmentation")
     return [encode_fragsmiles(smi) for smi in smiles_list]

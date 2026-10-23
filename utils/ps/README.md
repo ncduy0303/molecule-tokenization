@@ -1,5 +1,11 @@
 # Principal-subgraph fragmentation
 
+This directory is the **legacy ring-initialized implementation**. For the new
+shared fragSMILES/TSID/TSDY study, use `utils/shared_fragmentation.py` and
+`utils/shared_ps.py`, configured through `algorithm=train_shared_ps`. The new
+model format preserves the initial non-single bonds and is not compatible with
+old `ps_vocab.txt` artifacts. See the [runbook](../../docs/SHARED_FRAGMENTATION.md).
+
 This code implements the principal-subgraph path used by PS-fragSMILES. The CA report describes it as an adaptation of PS-VAE-style graph BPE that collapses ring systems before mining, to support fragSMILES assembly.
 
 | File                  | Role                                                                                                                                     |

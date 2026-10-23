@@ -26,6 +26,7 @@ from utils.cache_utils import (
     file_digest,
     source_identity,
     representation_identity,
+    validate_tokenizer_representation,
     validate_indices,
     tokenizer_exclusion,
     cache_error,
@@ -50,6 +51,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     """
     from datasets import DatasetDict, load_dataset
 
+    validate_tokenizer_representation(cfg, tokenizer)
     num_proc = cfg.get("num_proc", 8)
     smiles_col = cfg.smiles_column
     max_length = cfg.max_length
@@ -172,7 +174,11 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     use_fragsmiles = cfg.get("use_fragsmiles", False)
     use_tsmiles = cfg.get("use_tsmiles", False)
     tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
-    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    tsmiles_slicer = "exocyclic" if cfg.get("fragmentation") == "exocyclic" else cfg.get("tsmiles_slicer", "brics")
+    shared_options = {
+        "fragmentation": cfg.get("fragmentation", None),
+        "ps_merges_path": cfg.get("ps_merges_path", None),
+    }
     n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
     if n_active > 1:
         raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")
@@ -255,10 +261,11 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
             print("Encoding SMILES to fragSMILES...")
 
             def fragsmiles_encode_batch_fn(examples):
-                return {smiles_col: encode_fragsmiles_batch(examples[smiles_col])}
+                return {smiles_col: encode_fragsmiles_batch(examples[smiles_col], **shared_options)}
 
             splits = splits.map(
                 fragsmiles_encode_batch_fn,
+                load_from_cache_file=not bool(cfg.get("fragmentation")),
                 batched=True,
                 desc="Encoding SMILES to fragSMILES",
                 num_proc=num_proc,
@@ -270,12 +277,13 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
             def tsmiles_encode_batch_fn(examples):
                 return {
                     smiles_col: encode_tsmiles_batch(
-                        examples[smiles_col], slicer=tsmiles_slicer, variant=tsmiles_variant
+                        examples[smiles_col], slicer=tsmiles_slicer, variant=tsmiles_variant, **shared_options
                     )
                 }
 
             splits = splits.map(
                 tsmiles_encode_batch_fn,
+                load_from_cache_file=not bool(cfg.get("fragmentation")),
                 batched=True,
                 desc="Encoding SMILES to t-SMILES",
                 num_proc=num_proc,

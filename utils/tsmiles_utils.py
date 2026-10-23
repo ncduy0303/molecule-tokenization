@@ -25,7 +25,6 @@ from t_smiles.dataset.graph.cnjt_mol import CNJTMolTree
 from t_smiles.dataset.graph.cnj_mol_util import CNJMolUtil
 from t_smiles.mol_utils.rdk_utils.frag.rdk_frag_util import Fragment_Alg
 
-
 logger = logging.getLogger(__name__)
 
 Slicer = Literal["brics", "mmpa"]
@@ -198,6 +197,16 @@ def encode_tsmiles_batch(
     smiles_list: List[str],
     slicer: Slicer = "brics",
     variant: Variant = "TSDY",
+    fragmentation=None,
+    ps_merges_path=None,
 ) -> List[str]:
     """Convert a list of SMILES strings to t-SMILES representations."""
+    if fragmentation == "exocyclic":
+        from utils.shared_fragmentation import encode_shared
+        from utils.shared_ps import load_model
+
+        model = load_model(ps_merges_path) if ps_merges_path else None
+        return [encode_shared(smi, variant, model) for smi in smiles_list]
+    if fragmentation is not None or ps_merges_path:
+        raise ValueError("PS merges require shared exocyclic fragmentation")
     return [encode_tsmiles(smi, slicer=slicer, variant=variant) for smi in smiles_list]

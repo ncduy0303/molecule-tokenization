@@ -76,6 +76,38 @@ def representation_identity(cfg):
         raise ValueError("Only one dataset representation flag may be true.")
     mode = active[0] if active else "smiles"
     identity = {"mode": mode}
+    fragmentation = cfg.get("fragmentation", None)
+    ps_path = cfg.get("ps_merges_path", None)
+    if fragmentation not in (None, "exocyclic"):
+        raise ValueError("dataset.fragmentation must be null or exocyclic")
+    if ps_path and fragmentation != "exocyclic":
+        raise ValueError("ps_merges_path requires dataset.fragmentation=exocyclic")
+    if fragmentation == "exocyclic":
+        from importlib.metadata import version
+        from rdkit import rdBase
+        from utils.shared_fragmentation import SHARED_VERSION, EXOCYCLIC_SMARTS
+
+        if mode not in ("use_fragsmiles", "use_tsmiles"):
+            raise ValueError("Shared fragmentation requires use_fragsmiles or use_tsmiles")
+        if mode == "use_tsmiles":
+            variant = cfg.get("tsmiles_variant", "TSDY")
+            if variant not in ("TSID", "TSDY"):
+                raise ValueError("Shared fragmentation supports TSID and TSDY only")
+            identity["variant"] = variant
+        if ps_path:
+            from utils.shared_ps import load_model
+
+            load_model(ps_path)  # reject legacy or incompatible merge files before cache reuse
+        identity.update(
+            fragmentation="exocyclic",
+            shared_version=SHARED_VERSION,
+            cut_smarts=EXOCYCLIC_SMARTS,
+            preprocessing="canonical-isomeric-smiles",
+            rdkit_version=rdBase.rdkitVersion,
+            chemicalgof_version=version("chemicalgof"),
+            ps_merges_sha256=file_digest(ps_path) if ps_path else None,
+        )
+        return identity
     if mode == "use_safe":
         identity["slicer"] = cfg.get("safe_slicer", "brics")
     elif mode == "use_tsmiles":
@@ -94,6 +126,29 @@ def validate_indices(groups, total, expected_sizes=None, excluded=()):
             seen.add(index)
 
 
+def validate_ps_selection(cfg, indices_path):
+    """Require the miner to use the same excluded tokenizer-training rows."""
+    path = cfg.get("ps_merges_path", None)
+    if path:
+        from utils.shared_ps import load_model
+
+        model = load_model(path)
+        if model.provenance.get("tokenizer_indices_sha256") != file_digest(indices_path) or model.provenance.get(
+            "source"
+        ) != source_identity(cfg):
+            raise ValueError("PS merge model must use the same source and tokenizer-training selection as this run")
+
+
+def validate_tokenizer_representation(cfg, tokenizer):
+    recorded = getattr(tokenizer, "init_kwargs", {}).get("molecular_representation")
+    if cfg.get("fragmentation") or recorded is not None:
+        if recorded != representation_identity(cfg):
+            raise ValueError(
+                "Tokenizer representation does not match dataset settings or PS merge model. "
+                "Train a matching tokenizer with the shared-fragmentation settings first."
+            )
+
+
 def tokenizer_exclusion(cfg):
     """Require a verified tokenizer selection from the same PubChem source."""
     path_value = cfg.get("tokenizer_indices_path", None)
@@ -107,4 +162,5 @@ def tokenizer_exclusion(cfg):
         raise cache_error(path, "tokenizer and MLM source identities do not match")
     info = json.loads(path.read_text())
     validate_indices({"tokenizer": info["indices"]}, info["total_source"], {"tokenizer": identity["corpus_size"]})
+    validate_ps_selection(cfg, path)
     return set(info["indices"]), file_digest(path), info["total_source"], info["source_fingerprint"]

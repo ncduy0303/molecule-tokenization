@@ -30,6 +30,7 @@ from utils.cache_utils import (
     source_identity,
     representation_identity,
     validate_indices,
+    validate_ps_selection,
     cache_error,
 )
 
@@ -66,7 +67,11 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
     use_fragsmiles = cfg.get("use_fragsmiles", False)
     use_tsmiles = cfg.get("use_tsmiles", False)
     tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
-    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    tsmiles_slicer = "exocyclic" if cfg.get("fragmentation") == "exocyclic" else cfg.get("tsmiles_slicer", "brics")
+    shared_options = {
+        "fragmentation": cfg.get("fragmentation", None),
+        "ps_merges_path": cfg.get("ps_merges_path", None),
+    }
 
     n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
     if n_active > 1:
@@ -161,6 +166,7 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         print(f"Saved fixed tokenizer-training indices ({corpus_size:,} valid molecules) to {indices_path}")
         del full_ds
 
+    validate_ps_selection(cfg, indices_path)
     corpus_identity = {
         "kind": "tokenizer_corpus",
         "indices": file_digest(indices_path),
@@ -202,7 +208,7 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         with tqdm(total=total, unit="mol", miniters=1) as pbar:
             for start in range(0, total, _CHUNK):
                 chunk = raw_smiles_list[start : start + _CHUNK]
-                processed_list.extend(encode_fragsmiles_batch(chunk))
+                processed_list.extend(encode_fragsmiles_batch(chunk, **shared_options))
                 pbar.update(len(chunk))
         print("fragSMILES encoding complete")
     elif use_tsmiles:
@@ -212,7 +218,9 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         with tqdm(total=total, unit="mol", miniters=1) as pbar:
             for start in range(0, total, _CHUNK):
                 chunk = raw_smiles_list[start : start + _CHUNK]
-                processed_list.extend(encode_tsmiles_batch(chunk, slicer=tsmiles_slicer, variant=tsmiles_variant))
+                processed_list.extend(
+                    encode_tsmiles_batch(chunk, slicer=tsmiles_slicer, variant=tsmiles_variant, **shared_options)
+                )
                 pbar.update(len(chunk))
         print("t-SMILES encoding complete")
     else:
@@ -261,7 +269,7 @@ def build_word_counts(cfg: DictConfig):
     use_fragsmiles = cfg.get("use_fragsmiles", False)
     use_tsmiles = cfg.get("use_tsmiles", False)
     tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
-    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    tsmiles_slicer = "exocyclic" if cfg.get("fragmentation") == "exocyclic" else cfg.get("tsmiles_slicer", "brics")
     n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
     if n_active > 1:
         raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")
@@ -366,7 +374,7 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
     use_fragsmiles = cfg.get("use_fragsmiles", False)
     use_tsmiles = cfg.get("use_tsmiles", False)
     tsmiles_variant = cfg.get("tsmiles_variant", "TSDY")
-    tsmiles_slicer = cfg.get("tsmiles_slicer", "brics")
+    tsmiles_slicer = "exocyclic" if cfg.get("fragmentation") == "exocyclic" else cfg.get("tsmiles_slicer", "brics")
     n_active = sum([use_safe, use_fragsmiles, use_tsmiles])
     if n_active > 1:
         raise ValueError("Only one of dataset.use_safe, dataset.use_fragsmiles, dataset.use_tsmiles can be true.")

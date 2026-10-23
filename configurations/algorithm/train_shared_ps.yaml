@@ -1,0 +1,8 @@
+defaults:
+  - base_tokenizer
+
+# Learn a reusable fragmentation model, not a serialized-token vocabulary.
+tokenizer:
+  type: shared_ps
+  num_merges: 1000
+  min_frequency: 10

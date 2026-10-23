@@ -1,3 +1,8 @@
 # Shared settings passed to the molecular dataset loader.
 debug: ${debug}
 num_proc: 8
+
+# Opt in to one shared partition for fragSMILES and TSID/TSDY.
+# null retains the historical representation-specific conversion paths.
+fragmentation: null # null or exocyclic
+ps_merges_path: null # optional frozen shared-exocyclic-ps-v1 JSON model

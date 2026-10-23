@@ -16,6 +16,13 @@ MLM also registers `ape_roberta_pretrained` and `bpe_roberta_pretrained`. Classi
 
 The `base_*` YAML files provide inherited settings. They are not standalone experiments or runnable algorithms.
 
+`algorithm=train_shared_ps` with `experiment=tokenizer_training` learns a reusable
+exocyclic-block PS merge model from raw SMILES. Its output is `ps_merges.json`,
+not a Hugging Face tokenizer. Use the ordinary `train_fragsmiles` or
+`train_tsmiles` presets afterward with `dataset.fragmentation=exocyclic` and
+optional `dataset.ps_merges_path`. Keep those representation settings for MLM
+and classification. See the [shared study runbook](../docs/SHARED_FRAGMENTATION.md).
+
 ## Common overrides
 
 ```bash

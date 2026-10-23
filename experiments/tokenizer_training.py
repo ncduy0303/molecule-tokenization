@@ -97,6 +97,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
         "train_fragsmiles": TokenizerTrainer,
         "train_tsmiles": TokenizerTrainer,
         "train_ps_fragsmiles": TokenizerTrainer,
+        "train_shared_ps": TokenizerTrainer,
     }
 
     def __init__(
@@ -114,6 +115,12 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         algo_cfg = self.algo.cfg  # type: ignore
         tok_type = algo_cfg.tokenizer.type
+
+        if tok_type in ("ps_fragsmiles", "shared_ps") and any(
+            self.root_cfg.dataset.get(key, False)
+            for key in ("use_fragsmiles", "use_tsmiles", "use_safe", "fragmentation", "ps_merges_path")
+        ):
+            raise ValueError("PS mining requires raw canonical SMILES, without representation flags")
 
         # Load the fixed SMILES corpus (returns list + path to corpus.txt)
         corpus, corpus_path = load_pubchem10m_tokenizer_corpus(self.root_cfg.dataset)
@@ -140,11 +147,44 @@ class TokenizerTrainingExperiment(BaseExperiment):
             self._train_tsmiles(corpus, algo_cfg)
         elif tok_type == "ps_fragsmiles":
             self._train_ps(corpus_path, algo_cfg)
+        elif tok_type == "shared_ps":
+            self._train_shared_ps(corpus, corpus_path, algo_cfg)
         else:
             raise ValueError(
                 f"Unknown tokenizer training type: '{tok_type}'. "
-                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt', 'fragsmiles', 'tsmiles', 'ps_fragsmiles'"
+                "Supported: 'ape', 'bpe', 'spe', 'smirk', 'smirk_gpe', 'pcatt', 'smirk_pcatt', 'fragsmiles', 'tsmiles', 'ps_fragsmiles', 'shared_ps'"
             )
+
+    def _train_shared_ps(self, corpus, corpus_path, algo_cfg):
+        from utils.cache_utils import read_metadata, file_digest
+        from utils.shared_ps import train_shared_ps
+
+        output = self.output_dir / "ps_merges.json"
+        if output.exists():
+            raise ValueError(f"Merge model already exists: {output}. Use a new run directory.")
+        metadata = read_metadata(corpus_path)
+        provenance = {
+            "tokenizer_indices_sha256": metadata["indices"],
+            "source": metadata["selection"]["source"],
+            "corpus_sha256": file_digest(corpus_path),
+            "corpus_size": len(corpus),
+            "requested_merges": algo_cfg.tokenizer.num_merges,
+            "min_frequency": algo_cfg.tokenizer.min_frequency,
+        }
+
+        def progress(step, key, frequency, affected):
+            if step == 1 or step % 100 == 0:
+                print(f"PS merge {step}: {key} (frequency={frequency}, affected_molecules={affected})", flush=True)
+
+        model = train_shared_ps(
+            corpus,
+            num_merges=algo_cfg.tokenizer.num_merges,
+            min_frequency=algo_cfg.tokenizer.min_frequency,
+            provenance=provenance,
+            progress=progress,
+        )
+        model.save(output)
+        print(f"Saved {len(model.rules)} shared PS merge rules to {output}")
 
     def _train_ape(self, corpus, algo_cfg):
         """Train an APE tokenizer using the apetokenizer library."""
@@ -675,6 +715,14 @@ class TokenizerTrainingExperiment(BaseExperiment):
         import chemicalgof
         from utils.fragsmiles_tokenizer import FragSMILESTokenizer
 
+        from utils.cache_utils import representation_identity
+
+        shared = self.root_cfg.dataset.get("fragmentation") == "exocyclic"
+        tokenizer_options = (
+            {"preserve_components": True, "molecular_representation": representation_identity(self.root_cfg.dataset)}
+            if shared
+            else {}
+        )
         tok_cfg = algo_cfg.tokenizer
         vocab_size = tok_cfg.vocab_size
 
@@ -699,13 +747,17 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         for fragsmi in corpus:
             try:
-                fragments = chemicalgof.split(fragsmi)
+                from utils.fragsmiles_utils import split_fragsmiles_tokens
+
+                fragments = split_fragsmiles_tokens(fragsmi, preserve_components=shared)
 
                 for frag in fragments:
                     if frag:  # Skip empty fragments
                         fragment_counts[frag] = fragment_counts.get(frag, 0) + 1
             except Exception:
-                # Skip problematic SMILES strings
+                if shared:
+                    raise
+                # Legacy behavior for historical tokenizers.
                 pass
 
         # Sort fragments by frequency (most common first)
@@ -756,6 +808,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
             mask_token=tok_cfg.mask_token,
             bos_token=tok_cfg.bos_token,
             eos_token=tok_cfg.eos_token,
+            **tokenizer_options,
         )
 
         # Save full tokenizer
@@ -783,6 +836,14 @@ class TokenizerTrainingExperiment(BaseExperiment):
         import re
         from utils.tsmiles_tokenizer import TSMILESTokenizer
 
+        from utils.cache_utils import representation_identity
+
+        shared = self.root_cfg.dataset.get("fragmentation") == "exocyclic"
+        tokenizer_options = (
+            {"preserve_components": True, "molecular_representation": representation_identity(self.root_cfg.dataset)}
+            if shared
+            else {}
+        )
         tok_cfg = algo_cfg.tokenizer
         vocab_size = tok_cfg.vocab_size
 
@@ -809,11 +870,15 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         for tsmiles_str in corpus:
             try:
-                tokens = tsmiles_re.findall(tsmiles_str)
+                from utils.tsmiles_tokenizer import split_tsmiles_tokens
+
+                tokens = split_tsmiles_tokens(tsmiles_str, preserve_components=shared)
                 for tok in tokens:
                     if tok:
                         token_counts[tok] = token_counts.get(tok, 0) + 1
             except Exception:
+                if shared:
+                    raise
                 pass
 
         # Sort tokens by frequency (most common first)
@@ -860,6 +925,7 @@ class TokenizerTrainingExperiment(BaseExperiment):
             mask_token=tok_cfg.mask_token,
             bos_token=tok_cfg.bos_token,
             eos_token=tok_cfg.eos_token,
+            **tokenizer_options,
         )
 
         tokenizer.save_pretrained(str(save_dir))
