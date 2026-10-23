@@ -30,9 +30,9 @@ class MoleculeClassificationAlgo:
         tok_type = tok_cfg.type
 
         if tok_type == "smirk":
-            from smirk import SmirkTokenizerFast
+            from utils.smirk_utils import load_smirk_tokenizer
 
-            tokenizer = SmirkTokenizerFast()
+            tokenizer = load_smirk_tokenizer(tok_cfg.get("pretrained", None))
         elif tok_type == "auto":
             from transformers import AutoTokenizer
 
@@ -74,7 +74,7 @@ class MoleculeClassificationAlgo:
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)
         if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token or "[PAD]" # type: ignore
+            tokenizer.pad_token = tokenizer.eos_token or "[PAD]"  # type: ignore
 
         return tokenizer
 

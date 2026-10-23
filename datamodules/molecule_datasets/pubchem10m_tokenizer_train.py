@@ -23,6 +23,16 @@ from omegaconf import DictConfig
 from rdkit import Chem
 from rdkit import RDLogger
 
+from utils.cache_utils import (
+    cache_matches,
+    record_cache,
+    file_digest,
+    source_identity,
+    representation_identity,
+    validate_indices,
+    cache_error,
+)
+
 from utils.safe_utils import encode_safe_batch
 from utils.fragsmiles_utils import encode_fragsmiles_batch
 from utils.tsmiles_utils import encode_tsmiles_batch
@@ -78,40 +88,25 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         corpus_path = data_dir / "corpus.txt"
         label = "SMILES"
 
-    # ── Fast path: load from cached corpus.txt ──────────────────────────
-    if corpus_path.exists():
-        print(f"Loading cached tokenizer-training corpus from {corpus_path}")
-        smiles_list = corpus_path.read_text().splitlines()
-        if len(smiles_list) < corpus_size:
-            raise RuntimeError(f"Cached corpus has {len(smiles_list):,} molecules but expected {corpus_size:,}")
-        if len(smiles_list) > corpus_size:
-            # Keep file-based training APIs in sync with in-memory trimming.
-            trimmed_path = data_dir / f"{corpus_path.stem}_{corpus_size}.txt"
-            smiles_list = smiles_list[:corpus_size]
-            trimmed_path.write_text("\n".join(smiles_list))
-            corpus_path = trimmed_path
-        else:
-            smiles_list = smiles_list[:corpus_size]
-        print(f"Loaded {len(smiles_list):,} canonical {label} strings from cache")
-        return smiles_list, corpus_path
-
-    # ── Slow path: download, sample valid indices, and save ─────────────
-    needs_generation = True
-    if indices_path.exists():
-        with open(indices_path) as f:
-            idx_info = json.load(f)
-
-        # Check if the existing indices were strictly validated by RDKit
-        if idx_info.get("rdkit_validated", False) and idx_info.get("seed") == seed:
-            print(f"Loading fixed, RDKit-validated tokenizer-training indices from {indices_path}")
-            indices = idx_info["indices"]
-            needs_generation = False
-        else:
-            print(f"Existing indices at {indices_path} are outdated or not RDKit-validated. Regenerating...")
+    index_identity = {
+        "kind": "tokenizer_indices",
+        "source": source_identity(cfg),
+        "seed": seed,
+        "corpus_size": corpus_size,
+    }
+    if corpus_size <= 0:
+        raise ValueError("dataset.corpus_size must be positive")
+    needs_generation = not cache_matches(indices_path, index_identity)
+    if needs_generation and corpus_path.exists():
+        raise cache_error(corpus_path, "corpus has no verified selection indices")
+    if not needs_generation:
+        idx_info = json.loads(indices_path.read_text())
+        indices = idx_info["indices"]
+        validate_indices({"tokenizer": indices}, idx_info["total_source"], {"tokenizer": corpus_size})
 
     if needs_generation:
         print("Downloading/Loading full PubChem10M to select valid indices (first time only)...")
-        full_ds = load_dataset(cfg.hf_dataset, split="train")
+        full_ds = load_dataset(cfg.hf_dataset, split="train", revision=cfg.get("hf_revision", None))
         n_total = len(full_ds)
         assert n_total >= corpus_size, f"Dataset has {n_total} molecules but we need {corpus_size}"
 
@@ -155,18 +150,34 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
         idx_info = {
             "seed": seed,
             "total_source": n_total,
+            "source_fingerprint": full_ds._fingerprint,
             "corpus_size": corpus_size,
             "rdkit_validated": True,
             "indices": indices,
         }
         with open(indices_path, "w") as f:
             json.dump(idx_info, f)
+        record_cache(indices_path, index_identity)
         print(f"Saved fixed tokenizer-training indices ({corpus_size:,} valid molecules) to {indices_path}")
         del full_ds
 
+    corpus_identity = {
+        "kind": "tokenizer_corpus",
+        "indices": file_digest(indices_path),
+        "selection": index_identity,
+        "representation": representation_identity(cfg),
+    }
+    if cache_matches(corpus_path, corpus_identity):
+        smiles_list = corpus_path.read_text().splitlines()
+        if len(smiles_list) != corpus_size:
+            raise cache_error(corpus_path, "row count differs from selection")
+        return smiles_list, corpus_path
+
     # ── Load the selected SMILES strings ────────────────────────────────
     print(f"Loading {len(indices):,} SMILES strings for tokenizer training...")  # type: ignore
-    full_ds = load_dataset(cfg.hf_dataset, split="train")
+    full_ds = load_dataset(cfg.hf_dataset, split="train", revision=cfg.get("hf_revision", None))
+    if full_ds._fingerprint != idx_info["source_fingerprint"]:
+        raise cache_error(indices_path, "source dataset contents changed")
     subset = full_ds.select(indices)  # type: ignore
     raw_smiles_list = subset[smiles_col]
     del full_ds, subset
@@ -223,6 +234,7 @@ def load_pubchem10m_tokenizer_corpus(cfg: DictConfig):
 
     # ── Save corpus ─────────────────────────────────────────────────────
     corpus_path.write_text("\n".join(processed_list))
+    record_cache(corpus_path, corpus_identity)
     print(f"Saved canonical corpus ({len(processed_list):,} {label}) to {corpus_path}")
 
     return processed_list, corpus_path
@@ -265,7 +277,14 @@ def build_word_counts(cfg: DictConfig):
         raise ValueError(f"Unknown pretokenizer: {pretokenizer}")
 
     # ── Fast path: load from cache ──────────────────────────────────────
-    if word_counts_path.exists():
+    smiles_list, corpus_path = load_pubchem10m_tokenizer_corpus(cfg)
+    count_identity = {
+        "kind": "word_counts",
+        "corpus": file_digest(corpus_path),
+        "pretokenizer": pretokenizer,
+        "representation": representation_identity(cfg),
+    }
+    if cache_matches(word_counts_path, count_identity):
         print(f"Loading cached word counts from {word_counts_path}")
         with open(word_counts_path) as f:
             cached = json.load(f)
@@ -275,7 +294,6 @@ def build_word_counts(cfg: DictConfig):
         return word_count, longest_word_len
 
     # ── Slow path: compute from canonical corpus ────────────────────────
-    smiles_list, _ = load_pubchem10m_tokenizer_corpus(cfg)
 
     print(f"Building word counts from {len(smiles_list):,} canonical SMILES strings...")
     word_count: dict[str, int] = {}
@@ -313,6 +331,7 @@ def build_word_counts(cfg: DictConfig):
     }
     with open(word_counts_path, "w") as f:
         json.dump(cached, f)
+    record_cache(word_counts_path, count_identity)
     print(
         f"Saved word counts ({len(word_count):,} unique words, " f"longest: {longest_word_len}) to {word_counts_path}"
     )
@@ -369,7 +388,15 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
     adapter = SmirkPCATTAdapter(smirk_vocab)
 
     # ── Fast path: load from cache ──────────────────────────────────────
-    if word_counts_path.exists():
+    smiles_list, corpus_path = load_pubchem10m_tokenizer_corpus(cfg)
+    count_identity = {
+        "kind": "word_counts",
+        "corpus": file_digest(corpus_path),
+        "pretokenizer": pretokenizer,
+        "representation": representation_identity(cfg),
+    }
+    count_identity["smirk_vocab"] = smirk_vocab
+    if cache_matches(word_counts_path, count_identity):
         print(f"Loading cached Smirk-PCATT word counts from {word_counts_path}")
         with open(word_counts_path) as f:
             cached = json.load(f)
@@ -380,7 +407,6 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
         return word_count, longest_word_len, adapter
 
     # ── Slow path: compute from canonical corpus ────────────────────────
-    smiles_list, _ = load_pubchem10m_tokenizer_corpus(cfg)
 
     print(f"Building Smirk-PCATT word counts from {len(smiles_list):,} canonical SMILES strings...")
     word_count = {}
@@ -422,6 +448,7 @@ def build_smirk_pcatt_word_counts(cfg: DictConfig):
     }
     with open(word_counts_path, "w") as f:
         json.dump(cached_data, f)
+    record_cache(word_counts_path, count_identity)
     print(
         f"Saved Smirk-PCATT word counts ({len(word_count):,} unique words, "
         f"longest: {longest_word_len}) to {word_counts_path}"

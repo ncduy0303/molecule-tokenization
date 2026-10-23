@@ -321,11 +321,14 @@ class TokenizerTrainingExperiment(BaseExperiment):
             new_vocab[token] = current_idx
             current_idx += 1
 
-        with open("vocab.json", "w") as f:
+        save_dir = self.output_dir / "tokenizer"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        vocab_path = save_dir / "vocab.json"
+        with vocab_path.open("w") as f:
             json.dump(new_vocab, f, indent=4)
 
         # Re-instantiate the SmirkTokenizerFast with the new vocab
-        tokenizer = SmirkTokenizerFast(vocab_file="vocab.json")
+        tokenizer = SmirkTokenizerFast(vocab_file=str(vocab_path))
 
         print(cyan("Trained vocab size:"), len(tokenizer))
 
@@ -941,9 +944,10 @@ class TokenizerTrainingExperiment(BaseExperiment):
 
         batch_size = 1024
         batch_smiles: list[str] = []
-        with open(corpus_path, "r", encoding="utf-8") as fin, open(
-            ps_frag_corpus_path, "w", encoding="utf-8"
-        ) as ps_out:
+        with (
+            open(corpus_path, "r", encoding="utf-8") as fin,
+            open(ps_frag_corpus_path, "w", encoding="utf-8") as ps_out,
+        ):
             for line in fin:
                 smi = line.strip()
                 if not smi:

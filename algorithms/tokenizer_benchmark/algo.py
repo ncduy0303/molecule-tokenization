@@ -29,9 +29,9 @@ class MoleculeMLMAlgo:
         tok_type = tok_cfg.type
 
         if tok_type == "smirk":
-            from smirk import SmirkTokenizerFast
+            from utils.smirk_utils import load_smirk_tokenizer
 
-            tokenizer = SmirkTokenizerFast(tok_cfg.get("pretrained", None))
+            tokenizer = load_smirk_tokenizer(tok_cfg.get("pretrained", None))
         elif tok_type == "auto":
             from transformers import AutoTokenizer
 

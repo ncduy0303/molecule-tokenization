@@ -20,6 +20,17 @@ from omegaconf import DictConfig
 from rdkit import Chem
 from rdkit import RDLogger
 
+from utils.cache_utils import (
+    cache_matches,
+    record_cache,
+    file_digest,
+    source_identity,
+    representation_identity,
+    validate_indices,
+    tokenizer_exclusion,
+    cache_error,
+)
+
 from utils.safe_utils import encode_safe_batch
 from utils.fragsmiles_utils import encode_fragsmiles_batch
 from utils.tsmiles_utils import encode_tsmiles_batch
@@ -54,20 +65,26 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     indices_path = data_dir / "subset_indices.json"
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    needs_generation = True
-    if indices_path.exists():
-        with open(indices_path) as f:
-            idx_info = json.load(f)
-
-        # Check if the existing indices were strictly validated by RDKit
-        if idx_info.get("rdkit_validated", False) and idx_info.get("seed") == seed:
-            print(f"Loading fixed, RDKit-validated subset indices from {indices_path}")
-            train_indices = idx_info["train"]
-            val_indices = idx_info["validation"]
-            test_indices = idx_info["test"]
-            needs_generation = False
-        else:
-            print(f"Existing indices at {indices_path} are outdated or not RDKit-validated. Regenerating...")
+    if min(train_size, val_size, test_size) <= 0:
+        raise ValueError("MLM split sizes must be positive")
+    excluded, exclusion_digest, source_total, source_fingerprint = tokenizer_exclusion(cfg)
+    index_identity = {
+        "kind": "mlm_indices",
+        "source": source_identity(cfg),
+        "seed": seed,
+        "train_size": train_size,
+        "val_size": val_size,
+        "test_size": test_size,
+        "tokenizer_indices": exclusion_digest,
+    }
+    needs_generation = not cache_matches(indices_path, index_identity)
+    if needs_generation and any(data_dir.glob("canon_*.txt")):
+        raise cache_error(data_dir, "processed strings have no verified selection indices")
+    if not needs_generation:
+        idx_info = json.loads(indices_path.read_text())
+        train_indices = idx_info["train"]
+        val_indices = idx_info["validation"]
+        test_indices = idx_info["test"]
 
     if needs_generation:
         # Download full dataset to determine total size & sample indices
@@ -75,10 +92,16 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         full_ds = load_dataset(
             cfg.hf_dataset,
             split="train",
+            revision=cfg.get("hf_revision", None),
         )
 
         n_total = len(full_ds)
-        assert n_total >= total_subset, f"Dataset has {n_total} molecules but we need {total_subset}"
+        if full_ds._fingerprint != source_fingerprint:
+            raise cache_error(indices_path, "source dataset differs from tokenizer selection")
+        if n_total != source_total:
+            raise ValueError("PubChem source size changed since tokenizer selection")
+        if n_total - len(excluded) < total_subset:
+            raise ValueError("Not enough source rows outside the tokenizer corpus for the requested MLM splits")
 
         rng = np.random.default_rng(seed)
         shuffled_indices = rng.permutation(n_total).tolist()
@@ -95,6 +118,8 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
             batch_smiles = full_ds.select(batch_idx)[smiles_col]
 
             for idx, smi in zip(batch_idx, batch_smiles):
+                if idx in excluded:
+                    continue
                 try:
                     mol = Chem.MolFromSmiles(smi)
                     if mol is not None:
@@ -132,9 +157,13 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         }
         with open(indices_path, "w") as f:
             json.dump(idx_info, f)
+        record_cache(indices_path, index_identity)
         print(f"Saved fixed subset indices ({total_subset:,} valid molecules) to {indices_path}")
 
         del full_ds  # free memory before re-selecting
+
+    groups = {"train": train_indices, "validation": val_indices, "test": test_indices}
+    validate_indices(groups, source_total, {"train": train_size, "validation": val_size, "test": test_size}, excluded)
 
     # ── Step 2: Load canonicalized (and optionally SAFE-encoded) SMILES ──
     # Cache canonical SMILES per split so we never re-download / re-canonicalize.
@@ -161,7 +190,14 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         prefix = "canon_smiles"
         label = "SMILES"
     cache_paths = {split: data_dir / f"{prefix}_{split}.txt" for split in ("train", "validation", "test")}
-    all_cached = all(p.exists() for p in cache_paths.values())
+    string_identity = {
+        "kind": "mlm_strings",
+        "selection": index_identity,
+        "indices": file_digest(indices_path),
+        "representation": representation_identity(cfg),
+    }
+    cache_status = [cache_matches(path, dict(string_identity, split=split)) for split, path in cache_paths.items()]
+    all_cached = all(cache_status)
 
     if all_cached:
         # ── Fast path: load processed SMILES from text files ────────────
@@ -171,6 +207,8 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         split_smiles: dict[str, list[str]] = {}
         for split, path in cache_paths.items():
             lines = path.read_text().splitlines()
+            if len(lines) != len(groups[split]):
+                raise cache_error(path, "row count differs from selection")
             split_smiles[split] = lines
             print(f"  {split}: {len(lines):,} {label} strings")
 
@@ -181,7 +219,9 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
     else:
         # ── Slow path: download, canonicalize, optionally SAFE-encode ───
         print("Loading PubChem10M subset splits...")
-        full_ds = load_dataset(cfg.hf_dataset, split="train")
+        full_ds = load_dataset(cfg.hf_dataset, split="train", revision=cfg.get("hf_revision", None))
+        if full_ds._fingerprint != source_fingerprint:
+            raise cache_error(indices_path, "source dataset contents changed")
 
         splits = DatasetDict(
             {
@@ -269,6 +309,7 @@ def load_pubchem10m_mlm_train(cfg: DictConfig, tokenizer):
         # Cache processed SMILES/SAFE strings to disk
         for split in ("train", "validation", "test"):
             cache_paths[split].write_text("\n".join(splits[split][smiles_col]))
+            record_cache(cache_paths[split], dict(string_identity, split=split))
         print(f"Cached {label} strings to {data_dir}/{prefix}_*.txt")
 
     # ── Step 3: Tokenize ────────────────────────────────────────────────

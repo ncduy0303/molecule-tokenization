@@ -17,6 +17,16 @@ from deepchem.data import NumpyDataset
 from deepchem.splits import ScaffoldSplitter, RandomSplitter
 from omegaconf import DictConfig
 
+from utils.cache_utils import (
+    cache_matches,
+    record_cache,
+    file_digest,
+    value_digest,
+    representation_identity,
+    validate_indices,
+    cache_error,
+)
+
 from utils.print_utils import cyan
 from utils.safe_utils import encode_safe_batch
 from utils.fragsmiles_utils import encode_fragsmiles_batch
@@ -140,7 +150,18 @@ def load_molnet(cfg: DictConfig, tokenizer):
     # ── Step 2: Get (or load cached) split indices ──────────────────────
     split_file = data_dir / f"{dataset_name}_split_indices.json"
 
-    if split_file.exists():
+    split_identity = {
+        "kind": "molnet_indices",
+        "dataset": dataset_name,
+        "source_url": MOLNET_URLS[dataset_name],
+        "seed": seed,
+        "targets": target_cols,
+        "smiles_column": smi_col,
+        "rows": value_digest(df[[smi_col] + target_cols].to_json(orient="split")),
+        "splitter": "scaffold" if dataset_name in SCAFFOLD_SPLIT_DATASETS else "random",
+        "fractions": [0.8, 0.1, 0.1],
+    }
+    if cache_matches(split_file, split_identity):
         print(cyan("  Loading cached split indices from"), str(split_file))
         with open(split_file) as f:
             idx_info = json.load(f)
@@ -164,7 +185,10 @@ def load_molnet(cfg: DictConfig, tokenizer):
         }
         with open(split_file, "w") as f:
             json.dump(idx_info, f)
+        record_cache(split_file, split_identity)
         print(cyan("  Saved split indices to"), str(split_file))
+
+    validate_indices({"train": train_idx, "validation": val_idx, "test": test_idx}, len(df))
 
     print(cyan("  Train:"), len(train_idx), "Val:", len(val_idx), "Test:", len(test_idx))
 
@@ -200,7 +224,14 @@ def load_molnet(cfg: DictConfig, tokenizer):
         split: data_dir / f"{dataset_name}_{mode_prefix}_{split}_seed{seed}.txt"
         for split in ("train", "validation", "test")
     }
-    all_cached = all(path.exists() for path in cache_paths.values())
+    string_identity = {
+        "kind": "molnet_strings",
+        "selection": split_identity,
+        "indices": file_digest(split_file),
+        "representation": representation_identity(cfg),
+    }
+    cache_status = [cache_matches(path, dict(string_identity, split=split)) for split, path in cache_paths.items()]
+    all_cached = all(cache_status)
 
     def process_split_with_map(smiles: list[str], split_name: str) -> list[str]:
         split_ds = Dataset.from_dict({smi_col: smiles})
@@ -270,6 +301,8 @@ def load_molnet(cfg: DictConfig, tokenizer):
         print(cyan(f"  Loading cached {label} strings from"), str(data_dir))
         for split, path in cache_paths.items():
             lines = path.read_text().splitlines()
+            if len(lines) != len(index_map[split]):
+                raise cache_error(path, "row count differs from selection")
             split_smiles_cache[split] = lines
             print(cyan(f"    {split}:"), f"{len(lines):,} {label} strings")
     else:
@@ -280,6 +313,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
             processed = process_split_with_map(smiles, split)
             split_smiles_cache[split] = processed
             cache_paths[split].write_text("\n".join(processed))
+            record_cache(cache_paths[split], dict(string_identity, split=split))
             print(cyan(f"    {split}:"), f"{len(processed):,} {label} strings")
         print(cyan("  Cached processed strings to"), f"{data_dir}/{dataset_name}_{mode_prefix}_*_seed{seed}.txt")
 
@@ -319,6 +353,7 @@ def load_molnet(cfg: DictConfig, tokenizer):
                 desc=f"Tokenizing {split_name} with APETokenizer",
             )
         else:
+
             def tokenize_batch(examples):
                 return tokenizer(
                     examples[smi_col],

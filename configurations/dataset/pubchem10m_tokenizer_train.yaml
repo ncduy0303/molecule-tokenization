@@ -3,6 +3,7 @@ defaults:
 
 name: pubchem10m_tokenizer_train
 hf_dataset: "mikemayuare/PubChem10M_SMILES_SELFIES"
+hf_revision: null # Pin a dataset revision for reproducible source row identities.
 data_dir: "data/pubchem10m_tokenizer_train"
 smiles_column: "SMILES"
 pretokenizer: null # Options: "atom_split", "structure_split", null

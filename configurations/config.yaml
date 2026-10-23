@@ -14,7 +14,7 @@ wandb:
   project: molecule-tokenization
   mode: disabled # Set online or offline for Hugging Face Trainer logging.
 
-# Legacy template checkpoint options. Molecular Trainers do not resume from these.
-# Use algorithm.model.pretrained / model.finetuned for saved HF models.
+# Local full Hugging Face Trainer checkpoint (checkpoint-N), not a W&B run ID.
 resume: null
+# Retained only to give an actionable error for obsolete commands.
 load: null

@@ -18,3 +18,5 @@ Both model wrappers dispatch on `algorithm.tokenizer.type`: `auto`, `smirk`, `ap
 - Register the YAML names in the appropriate experiment's `compatible_algorithms` mapping.
 - For a new tokenizer construction method, also add its training dispatch and implementation to `TokenizerTrainingExperiment`.
 - Check special-token IDs, vocabulary size, saved-tokenizer reload behavior, and consistency between training and evaluation tokenization.
+
+SMIRK loading is shared between MLM and downstream classification through `utils/smirk_utils.py`. `tokenizer.pretrained` accepts a saved tokenizer directory or a `tokenizer.json` file. With no path, it uses the default SMIRK vocabulary. Tokenizer construction writes its intermediate vocabulary inside the run's `tokenizer/` directory.

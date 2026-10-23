@@ -1,10 +1,10 @@
 """
-This repo is forked from [Boyuan Chen](https://boyuan.space/)'s research 
-template [repo](https://github.com/buoyancy99/research-template). 
-By its MIT license, you must keep the above sentence in `README.md` 
+This repo is forked from [Boyuan Chen](https://boyuan.space/)'s research
+template [repo](https://github.com/buoyancy99/research-template).
+By its MIT license, you must keep the above sentence in `README.md`
 and the `LICENSE` file to credit the author.
 
-Main file for the project. This will create and run new experiments and load checkpoints from wandb. 
+Main file for the project. This creates molecular experiments and resumes local Hugging Face checkpoints.
 Borrowed part of the code from David Charatan and wandb.
 """
 
@@ -19,7 +19,7 @@ from omegaconf.omegaconf import open_dict
 
 from utils.print_utils import cyan
 from utils.distributed_utils import is_rank_zero
-from utils.ckpt_utils import download_latest_checkpoint, is_run_id
+from utils.ckpt_utils import resolve_resume_checkpoint
 from utils.cluster_utils import submit_slurm_job
 
 
@@ -46,23 +46,7 @@ def run_local(cfg: DictConfig):
         (output_dir.parents[1] / "latest-run").unlink(missing_ok=True)
         (output_dir.parents[1] / "latest-run").symlink_to(output_dir, target_is_directory=True)
 
-    # Resolve ckpt path
-    resume = cfg.get("resume", None)
-    load = cfg.get("load", None)
-    checkpoint_path = None
-    load_id = None
-    if load and not is_run_id(load):
-        checkpoint_path = load
-    if resume:
-        load_id = resume
-    elif load and is_run_id(load):
-        load_id = load
-    else:
-        load_id = None
-
-    if load_id:
-        run_path = f"{cfg.wandb.entity}/{cfg.wandb.project}/{load_id}"
-        checkpoint_path = Path("outputs/downloaded") / run_path / "model.ckpt"
+    checkpoint_path = resolve_resume_checkpoint(cfg)
 
     # launch experiment
     experiment = build_experiment(cfg, output_dir, checkpoint_path)
@@ -131,7 +115,7 @@ def run(cfg: DictConfig):
     if "name" not in cfg:
         raise ValueError("must specify a name for the run with command line argument '+name=[name]'")
 
-    if not cfg.wandb.get("entity", None):
+    if cfg.wandb.mode == "online" and not cfg.wandb.get("entity", None):
         raise ValueError(
             "must specify wandb entity in 'configurations/config.yaml' or with command line"
             " argument 'wandb.entity=[entity]' \n An entity is your wandb user name or group"
@@ -141,26 +125,8 @@ def run(cfg: DictConfig):
     if cfg.wandb.project is None:
         cfg.wandb.project = str(Path(__file__).parent.name)
 
-    # If resuming or loading a wandb ckpt and not on a compute node, download the checkpoint.
-    resume = cfg.get("resume", None)
-    load = cfg.get("load", None)
-
-    if resume and load:
-        raise ValueError(
-            "When resuming a wandb run with `resume=[wandb id]`, checkpoint will be loaded from the cloud"
-            "and `load` should not be specified."
-        )
-
-    if resume:
-        load_id = resume
-    elif load and is_run_id(load):
-        load_id = load
-    else:
-        load_id = None
-
-    if load_id and "_on_compute_node" not in cfg:
-        run_path = f"{cfg.wandb.entity}/{cfg.wandb.project}/{load_id}"
-        download_latest_checkpoint(run_path, Path("outputs/downloaded"))
+    # Validate before downloading data or submitting cluster work.
+    resolve_resume_checkpoint(cfg)
 
     if "cluster" in cfg and not "_on_compute_node" in cfg:
         print(cyan("Slurm detected, submitting to compute node instead of running locally..."))

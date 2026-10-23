@@ -199,7 +199,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
             ],
         )
 
-        trainer.train()
+        trainer.train(resume_from_checkpoint=str(self.ckpt_path) if self.ckpt_path else None)
 
         # ── Final validation ────────────────────────────────────────────
         val_results = trainer.evaluate(eval_dataset=dataset["validation"])

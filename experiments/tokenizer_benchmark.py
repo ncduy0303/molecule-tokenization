@@ -186,7 +186,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             callbacks=[NaNStopCallback()],
         )
 
-        trainer.train()
+        trainer.train(resume_from_checkpoint=str(self.ckpt_path) if self.ckpt_path else None)
 
         # Validation eval (final)
         val_results = trainer.evaluate(eval_dataset=dataset[eval_split])  # type: ignore

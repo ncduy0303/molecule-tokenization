@@ -27,6 +27,6 @@ The loaders in `molecule_datasets/` prepare strings and labels for the three pro
 
 ## Reproducibility
 
-The tokenizer and MLM samplers each use their own seeded permutation of the same PubChem source. Separate cache directories do not guarantee disjoint samples. Cross-stage exclusion is not implemented.
+MLM requires `dataset.tokenizer_indices_path` from a verified tokenizer corpus and excludes those source rows from all splits. It validates the exclusion on cache reuse as well. Use the same source and `hf_revision` in both stages; pin the revision when reproducing experiments.
 
-Cache reuse does not check all sampling and representation settings. Preserve existing caches for old runs and use a fresh `dataset.data_dir` when changing corpus size, seed, source, or SAFE slicer. See [data storage](../data/README.md).
+Generated caches require matching provenance and content checksums. Changed settings or legacy caches raise errors instead of silently reusing data. Keep old research caches intact and choose a fresh `dataset.data_dir` for new settings. See [data storage and migration](../data/README.md).

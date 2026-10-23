@@ -40,10 +40,16 @@ python -m main +name=tsmiles_tsdym experiment=tokenizer_training \
 - Existing fields use `key=value`. Add a missing field with `+key=value`, for example `+algorithm.model.pretrained=PATH` on a scratch MLM preset.
 - Quote list overrides in shells: `'experiment.tasks=[evaluation]'`.
 - Many presets contain paths from previous runs. Set `algorithm.tokenizer.pretrained` and `algorithm.model.pretrained` to your artifacts instead of assuming those files are distributed with the repository.
-- Keep representation settings, tokenizer vocabulary, and model weights matched. Use fresh cache directories for changes not captured by cache keys.
+- Keep representation settings, tokenizer vocabulary, and model weights matched. Changed sampling or conversion settings require fresh cache directories; incompatible caches raise errors.
 
 ## Cluster configuration
 
 The generic `cluster/base_slurm.yaml` and launcher are retained as an optional template-derived path. It requires a configured environment and suitable resources before use.
 
 The project's existing job wrappers are documented in [scripts](../scripts/README.md). Do not combine those wrappers with a `cluster=...` override: the wrapper already submits a job, and the override would trigger another submission.
+
+## Corpus exclusion and checkpoints
+
+- `dataset.hf_revision` selects a PubChem source revision in both stages.
+- `dataset.tokenizer_indices_path` selects the verified tokenizer corpus to exclude from MLM. Override it when tokenizer training used a custom cache directory.
+- `resume=/path/to/checkpoint-N` restores full local Trainer state for model training. See [experiments](../experiments/README.md) for required files and saving checkpoints.

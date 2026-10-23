@@ -3,6 +3,7 @@ defaults:
 
 name: pubchem10m_mlm_train
 hf_dataset: "mikemayuare/PubChem10M_SMILES_SELFIES"
+hf_revision: null # Pin a dataset revision for reproducible source row identities.
 data_dir: "data/pubchem10m_mlm_train"
 smiles_column: "SMILES"
 max_length: 512
@@ -16,3 +17,6 @@ use_fragsmiles: false
 use_tsmiles: false
 tsmiles_variant: "TSDY" # Options: TSSA, TSDY, TSID, TSIS, TSISD, TSISO, TSISR
 tsmiles_slicer: "brics" # Options: brics, mmpa
+
+# Selection produced by the tokenizer-training loader; excluded from all MLM splits.
+tokenizer_indices_path: data/pubchem10m_tokenizer_train/subset_indices.json

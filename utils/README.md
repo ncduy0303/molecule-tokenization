@@ -21,4 +21,6 @@ Representation converters retain a SMILES fallback when conversion fails. Cached
 - `print_utils.py`: colored progress messages.
 - `distributed_utils.py`: rank-zero detection used by the launcher and base experiment. This still imports Lightning, even though molecular training uses Hugging Face Trainer.
 - `cluster_utils.py`: optional generic Slurm job generation used by `main.py`.
-- `ckpt_utils.py`: legacy W&B checkpoint download helpers used by the root `load`/`resume` options. These do not implement resumption of the molecular Trainers.
+- `ckpt_utils.py`: validates local full Trainer checkpoints and rejects obsolete loading options.
+- `cache_utils.py`: provenance/checksum validation, index validation, and tokenizer-corpus exclusion.
+- `smirk_utils.py`: shared SMIRK loading for pretraining and downstream use.
