@@ -6,9 +6,12 @@ The shared mode separates molecular partitioning from sequence serialization:
 
 1. Parse and canonicalize the molecular graph once. Preserve salts, isotopes,
    formal charges and stereochemistry; do not run the legacy t-SMILES standardizer.
-2. Select exactly chemicalgof's default cut SMARTS:
+2. Select chemicalgof's default cut SMARTS:
    `[!$([+1,-1]~[-1,+1])]-&!@[*]`. This means non-ring single bonds with the
-   library's exception for oppositely charged atoms.
+   library's exception for oppositely charged atoms. Shared version 2 also
+   requires each cut to be a graph bridge (removing it disconnects its endpoints).
+   RDKit 2025.09.4 can mark a cycle edge as non-ring in a highly bridged cage;
+   the bridge check keeps that edge inside the fragment instead of failing.
 3. Optionally apply one frozen model of learned PS-style merges to these blocks.
 4. Serialize the resulting atom partition as fragSMILES, TSID or TSDY.
 
@@ -59,6 +62,29 @@ time/memory before increasing the corpus. Legacy `ps_vocab.txt` files cannot be
 used as shared merge models.
 
 ## Cluster setup
+
+### Bridge-safe correction (shared version 2)
+
+The 2M TSID/TSDY jobs exposed `Cut bonds disagree with fragment membership`.
+The failure is reproducible on pinned PubChem source row 2832359:
+`CC1C2C3CC45C6C7C38CC1(C)C8(C)C7(C)C4(C)C1(C)C6C3C4CC26CC35C1(C)C4(C)C6C`.
+The old SMARTS proposes a cut inside this cage, although its endpoints remain
+connected. Version 2 intersects SMARTS matches with true graph bridges and
+preserves the existing validation. It does not discard the molecule.
+
+The same fix applies to all representations and PS mining. New representation
+metadata uses `shared_version: 2`; new merge models use
+`shared-exocyclic-ps-v2`. Old models must be re-mined, not relabelled. Keep old
+artifacts as pilot results and use fresh cache/output directories, for example
+`data/shared_study_2m_v2/` and `outputs/shared_study_2m_v2/`. Restart all three
+base jobs with the corrected code. An already-running process still uses the old
+code. Failed tokenizer encoding does not save its partial in-memory corpus, so
+it restarts encoding from the beginning.
+
+The completed 200K mining pilot remains useful for resource planning: supplied
+Slurm accounting reports 00:22:03 elapsed and 9.21G MaxRSS, and its log confirms
+1,000 merges. These are whole-job measurements, not a mining-only benchmark.
+They do not guarantee linear scaling to 2M.
 
 Run all commands from the repository root with the updated code on the cluster.
 No new dependencies are needed. Run `source .venv/bin/activate` and `wandb login`

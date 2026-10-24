@@ -13,7 +13,7 @@ import networkx as nx
 from rdkit import Chem
 
 EXOCYCLIC_SMARTS = "[!$([+1,-1]~[-1,+1])]-&!@[*]"
-SHARED_VERSION = 1
+SHARED_VERSION = 2
 _CUT_PATTERN = Chem.MolFromSmarts(EXOCYCLIC_SMARTS)
 
 
@@ -51,7 +51,18 @@ class FragmentPartition:
 
 
 def eligible_cuts(mol):
-    return {mol.GetBondBetweenAtoms(a, b).GetIdx() for a, b in mol.GetSubstructMatches(_CUT_PATTERN)}
+    # RDKit's perceived ring set can miss a cycle edge in highly bridged cages.
+    # Require a true graph bridge as well as the chemicalgof SMARTS: removing
+    # any eligible bond must disconnect its endpoints, preserving a forest.
+    graph = nx.Graph()
+    graph.add_nodes_from(range(mol.GetNumAtoms()))
+    graph.add_edges_from((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds())
+    bridges = {frozenset(edge) for edge in nx.bridges(graph)}
+    return {
+        mol.GetBondBetweenAtoms(a, b).GetIdx()
+        for a, b in mol.GetSubstructMatches(_CUT_PATTERN)
+        if frozenset((a, b)) in bridges
+    }
 
 
 def partition_from_cuts(mol, cuts):

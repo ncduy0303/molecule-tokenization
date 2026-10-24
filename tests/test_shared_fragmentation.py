@@ -51,6 +51,26 @@ MOLECULES = [
 
 
 class PartitionTests(unittest.TestCase):
+    def test_pubchem_cage_with_incomplete_ring_membership(self):
+        # PubChem source row 2832359 in the pinned dataset. The original SMARTS
+        # selects an internal cage edge on RDKit 2025.09.4.
+        smiles = "CC1C2C3CC45C6C7C38CC1(C)C8(C)C7(C)C4(C)C1(C)C6C3C4CC26CC35C1(C)C4(C)C6C"
+        base = partition_molecule(smiles)
+        graph = nx.Graph((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in base.mol.GetBonds())
+        for idx in base.cut_bonds:
+            bond = base.mol.GetBondWithIdx(idx)
+            reduced = graph.copy()
+            reduced.remove_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+            self.assertFalse(nx.has_path(reduced, bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
+        model = train_shared_ps([smiles, "CCO"], num_merges=3, min_frequency=1)
+        for merge_model in (None, model):
+            p = partition_molecule(smiles, merge_model)
+            p.validate()
+            tsid = serialize_tsmiles(p, "TSID")
+            self.assertEqual(decode_tsid(tsid), Chem.CanonSmiles(smiles))
+            self.assertEqual(Chem.CanonSmiles(chemicalgof.decode(serialize_fragsmiles(p))), Chem.CanonSmiles(smiles))
+            self.assertEqual(serialize_tsmiles(p, "TSDY"), re.sub(r"\[\d+\*\]", "*", tsid))
+
     def test_exact_chemicalgof_partition_and_baseline_output(self):
         from chemicalgof.reduce import Decompositer
 

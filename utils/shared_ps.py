@@ -19,7 +19,7 @@ from rdkit import Chem, rdBase
 from utils.cache_utils import file_digest
 from utils.shared_fragmentation import EXOCYCLIC_SMARTS, partition_from_cuts, partition_molecule
 
-FORMAT = "shared-exocyclic-ps-v1"
+FORMAT = "shared-exocyclic-ps-v2"
 
 
 class MergeState:
@@ -121,7 +121,9 @@ def _load_model(path, digest):
     if file_digest(path) != digest:
         raise ValueError("PS merge model changed while being loaded")
     if payload.get("format") != FORMAT or payload.get("cut_smarts") != EXOCYCLIC_SMARTS:
-        raise ValueError("Not a shared exocyclic PS model; legacy PS vocabularies are incompatible")
+        raise ValueError(
+            "Not a current shared exocyclic PS model; re-mine with the bridge-safe cut rule (legacy models are incompatible)"
+        )
     if payload.get("rdkit_version") != rdBase.rdkitVersion:
         raise ValueError("PS merge model RDKit version differs from the current environment")
     rules = payload.get("rules")
