@@ -51,6 +51,21 @@ MOLECULES = [
 
 
 class PartitionTests(unittest.TestCase):
+    def test_tsis_preserves_fragments_and_reconstructs_without_tree_placeholders(self):
+        model = train_shared_ps(MOLECULES, num_merges=12, min_frequency=1)
+        for smiles in MOLECULES:
+            for merges in (None, model):
+                p = partition_molecule(smiles, merges)
+                tsid = serialize_tsmiles(p, "TSID")
+                tsis = serialize_tsmiles(p, "TSIS")
+                self.assertNotIn("&", tsis)
+                self.assertEqual(decode_tsid(tsis), Chem.CanonSmiles(smiles))
+                for left, right in zip(tsid.split("."), tsis.split(".")):
+                    self.assertEqual(Counter(filter(None, re.split(r"[&^]", left))), Counter(right.split("^")))
+        p = partition_molecule("CC(C)CO")
+        fragments = decorated_fragments(p)
+        self.assertEqual(serialize_tsmiles(p, "TSIS"), "^".join(fragments[i] for i in [0, 1, 2, 3, 4]))
+
     def test_pubchem_cage_with_incomplete_ring_membership(self):
         # PubChem source row 2832359 in the pinned dataset. The original SMARTS
         # selects an internal cage edge on RDKit 2025.09.4.
@@ -112,7 +127,7 @@ class PartitionTests(unittest.TestCase):
         for smiles in ("", "not-a-molecule", "*CC", "[CH3:1]CO"):
             with self.assertRaises(ValueError):
                 partition_molecule(smiles)
-        with self.assertRaisesRegex(ValueError, "TSID and TSDY"):
+        with self.assertRaisesRegex(ValueError, "TSID, TSDY and TSIS"):
             encode_shared("CC", "TSSA")
 
     def test_binary_tree_matches_upstream_without_using_its_fragmenter(self):
@@ -190,6 +205,7 @@ class SharedPipelineTests(unittest.TestCase):
         for representation, cls, splitter in [
             ("fragsmiles", FragSMILESTokenizer, split_fragsmiles_tokens),
             ("TSID", TSMILESTokenizer, split_tsmiles_tokens),
+            ("TSIS", TSMILESTokenizer, split_tsmiles_tokens),
         ]:
             text = encode_shared("[Na+].[Cl-]", representation)
             tokens = splitter(text, preserve_components=True)
@@ -242,7 +258,7 @@ class SharedPipelineTests(unittest.TestCase):
             merge_path = output / "ps_merges.json"
 
             for use_merges in (False, True):
-                for representation in ("fragsmiles", "TSID", "TSDY"):
+                for representation in ("fragsmiles", "TSID", "TSDY", "TSIS"):
                     family = "fragsmiles" if representation == "fragsmiles" else "tsmiles"
                     folder = root / f"{representation}_{use_merges}"
                     with initialize_config_dir(config_dir=str(ROOT / "configurations"), version_base=None):

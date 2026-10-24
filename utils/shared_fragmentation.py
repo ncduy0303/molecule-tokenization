@@ -195,11 +195,17 @@ def binary_tree_tokens(graph, fragments):
 
 
 def serialize_tsmiles(partition, variant="TSID"):
-    if variant not in ("TSID", "TSDY"):
-        raise ValueError("Shared exocyclic fragmentation supports TSID and TSDY only")
+    if variant not in ("TSID", "TSDY", "TSIS"):
+        raise ValueError("Shared exocyclic fragmentation supports TSID, TSDY and TSIS only")
     components = []
     for part in component_partitions(partition):
         fragments = decorated_fragments(part)
+        if variant == "TSIS":
+            # Traverse the original fragment tree, without FBT placeholder nodes.
+            graph = part.graph()
+            order = nx.bfs_tree(graph, min(graph.nodes), sort_neighbors=sorted)
+            components.append("^".join(fragments[node] for node in order))
+            continue
         if variant == "TSDY":
             # Keep identical fragment order and stereochemistry; remove only dummy IDs.
             fragments = [re.sub(r"\[\d+\*\]", "*", s) for s in fragments]
@@ -212,7 +218,7 @@ def serialize_tsmiles(partition, variant="TSID"):
 
 
 def decode_tsid(text):
-    """Reassemble our TSID strings by paired dummy IDs for round-trip audits.
+    """Reassemble our TSID/TSIS strings by paired dummy IDs for round-trip audits.
 
     Attachment IDs recover connectivity independently of the FBT traversal.
     This is not a TSDY decoder and does not validate arbitrary generated FBTs.

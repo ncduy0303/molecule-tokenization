@@ -91,8 +91,8 @@ def representation_identity(cfg):
             raise ValueError("Shared fragmentation requires use_fragsmiles or use_tsmiles")
         if mode == "use_tsmiles":
             variant = cfg.get("tsmiles_variant", "TSDY")
-            if variant not in ("TSID", "TSDY"):
-                raise ValueError("Shared fragmentation supports TSID and TSDY only")
+            if variant not in ("TSID", "TSDY", "TSIS"):
+                raise ValueError("Shared fragmentation supports TSID, TSDY and TSIS only")
             identity["variant"] = variant
         if ps_path:
             from utils.shared_ps import load_model

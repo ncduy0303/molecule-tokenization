@@ -13,7 +13,7 @@ The shared mode separates molecular partitioning from sequence serialization:
    RDKit 2025.09.4 can mark a cycle edge as non-ring in a highly bridged cage;
    the bridge check keeps that edge inside the fragment instead of failing.
 3. Optionally apply one frozen model of learned PS-style merges to these blocks.
-4. Serialize the resulting atom partition as fragSMILES, TSID or TSDY.
+4. Serialize the resulting atom partition as fragSMILES, TSID, TSDY or TSIS.
 
 TSID and TSDY use the same first-child/next-sibling full binary tree and
 breadth-first traversal, including the upstream extra root dummy. The new adapter
@@ -23,7 +23,12 @@ from canonical atom order. Fragment strings use aromatic, isomeric RDKit SMILES.
 
 TSDY differs from TSID only by removing the attachment dummy isotope IDs. It can
 be compared for prediction, but exact unique reconstruction is not promised.
-The TSID audit decoder pairs attachment IDs; it is not a validator for arbitrary
+TSIS uses breadth-first traversal of the original fragment tree, joining the
+same attachment-labelled fragments with `^`, without FBT `&` placeholders.
+Its canonical root and sorted child order match the shared TSID construction.
+Disconnected components remain separated by `.`.
+
+The TSID/TSIS audit decoder pairs attachment IDs; it is not a validator for arbitrary
 generated binary-tree strings. Input dummy atoms and atom-mapped input are rejected.
 
 The shared path raises encoding errors instead of falling back to plain SMILES.
@@ -282,3 +287,36 @@ binary-tree serialization, deterministic incremental mining against full recount
 cache multiplicity, artifact reload, and all three representations through
 tokenizer training, MLM dataset preparation, and HIV/BBBP dataset preparation.
 These are offline fixtures, not completed cluster experiments.
+
+## Shared TSIS
+
+TSIS is an additional serializer, with the same version-2 partition and PS
+models as TSID. Adding it does not invalidate existing version-2 artifacts.
+It retains the same fragment labels and therefore does not inherently remove
+TSID's fragment-vocabulary sparsity. Its traversal is BFS on the fragment tree,
+not simply deletion of `&` characters from an FBT traversal.
+
+After syncing the updated code to the cluster, use the same pinned revision:
+
+```bash
+FYP_HF_REV=$(cat outputs/shared_study/pubchem_revision.txt)
+: "${FYP_HF_REV:?Dataset revision must not be empty}"
+bash scripts/submit_long.sh SHARED-EXO-TSIS-5K-2M-V2 \
+  experiment=tokenizer_training dataset=pubchem10m_tokenizer_train \
+  algorithm=train_tsmiles dataset.use_tsmiles=true \
+  dataset.fragmentation=exocyclic dataset.tsmiles_variant=TSIS \
+  dataset.hf_revision="$FYP_HF_REV" dataset.corpus_size=2000000 dataset.seed=42 \
+  dataset.data_dir=data/shared_study_2m_v2/base_TSIS \
+  algorithm.tokenizer.vocab_size=5000 \
+  hydra.run.dir=outputs/shared_study_2m_v2/base_TSIS
+```
+
+For PS-TSIS, wait for the corrected 2M miner to finish, add
+`dataset.ps_merges_path=outputs/shared_study_2m_v2/miner/ps_merges.json`,
+and change both directories to `ps_TSIS` and the run name to a unique PS name.
+If the cluster miner uses a different directory, use its actual path.
+The merge model must match the tokenizer's exact source selection.
+
+The audit script now includes `TSIS_encoded` and `TSIS_roundtrip_ok` counts.
+The decoder audits reconstruction from paired IDs; it does not validate
+arbitrary generated TSIS syntax. No TSDY reconstruction claim is added.

@@ -43,7 +43,7 @@ def audit(smiles, merge_model=None):
             if len(examples) < 20:
                 examples.append({"smiles": smi, "stage": "partition", "error": str(exc)})
             continue
-        for representation in ("fragsmiles", "TSID", "TSDY"):
+        for representation in ("fragsmiles", "TSID", "TSDY", "TSIS"):
             try:
                 text = (
                     serialize_fragsmiles(partition)
