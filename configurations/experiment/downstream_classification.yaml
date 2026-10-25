@@ -18,3 +18,5 @@ training:
   logging_steps: 50
   early_stopping_patience: 3
   seed: 42
+  # Training sampler seed, separate from dataset.seed (corpus/split selection).
+  data_seed: ${.seed}

@@ -120,6 +120,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
         print(cyan("Num labels:"), num_labels)
 
         # ── Build classification model ──────────────────────────────────
+        self._seed_rng()
         model = self.algo.build_model(num_labels=num_labels)
 
         print(cyan("Tokenizer:"), type(tokenizer).__name__)
@@ -152,6 +153,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
             fp16=t.fp16,
             bf16=t.bf16,
             seed=t.seed,
+            data_seed=t.get("data_seed", t.seed),
             # Evaluation & Logging
             eval_strategy="epoch",
             logging_steps=t.logging_steps,
@@ -228,6 +230,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
         dataset = load_molnet(self.root_cfg.dataset, tokenizer)
 
         num_labels = len(dataset["train"][0]["labels"])
+        self._seed_rng()
         model = self.algo.build_model(num_labels=num_labels)
 
         report_to = self._setup_wandb_env()
@@ -236,6 +239,8 @@ class DownstreamClassificationExperiment(BaseExperiment):
             output_dir=str(self.output_dir),
             run_name=self.root_cfg.name,
             per_device_eval_batch_size=self.cfg.training.per_device_eval_batch_size,
+            seed=self.cfg.training.seed,
+            data_seed=self.cfg.training.get("data_seed", self.cfg.training.seed),
             report_to=report_to,
             remove_unused_columns=False,
         )

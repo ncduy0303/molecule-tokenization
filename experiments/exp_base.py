@@ -55,6 +55,8 @@ class BaseExperiment(ABC):
         Build the configured molecular algorithm
         :return: algorithm wrapper selected by the configuration
         """
+        # MLM wrappers construct random model weights in their constructor.
+        self._seed_rng()
         algo_name = self.root_cfg.algorithm._name
         if algo_name not in self.compatible_algorithms:
             raise ValueError(
@@ -64,6 +66,20 @@ class BaseExperiment(ABC):
             )
         self.algo = self.compatible_algorithms[algo_name](self.root_cfg.algorithm)
         return self.algo
+
+    def _seed_rng(self):
+        """Seed initialization independently of dataset/cache processing.
+
+        Trainer subsequently seeds training and restores checkpoint RNG state on
+        resume. Do not call this inside the training loop or after that restore.
+        Dataset sampling/splits retain their own dataset.seed.
+        """
+        from transformers import set_seed
+
+        training = self.cfg.get("training", {})
+        seed = int(training.get("seed", self.root_cfg.dataset.get("seed", 42)))
+        set_seed(seed)
+        return seed
 
     def exec_task(self, task: str) -> None:
         """

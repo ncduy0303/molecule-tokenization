@@ -157,6 +157,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             fp16=t.fp16,
             bf16=t.bf16,
             seed=t.seed,
+            data_seed=t.get("data_seed", t.seed),
             # Evaluation & Logging
             eval_strategy=t.eval_strategy,
             eval_steps=t.get("eval_steps", None),
@@ -247,6 +248,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
             per_device_eval_batch_size=self.cfg.training.per_device_eval_batch_size,
             report_to=report_to,
             seed=self.cfg.training.seed,
+            data_seed=self.cfg.training.get("data_seed", self.cfg.training.seed),
         )
 
         data_collator = DataCollatorForLanguageModeling(

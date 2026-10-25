@@ -24,3 +24,5 @@ training:
   save_strategy: "no"
   save_total_limit: 1
   seed: 42
+  # Training sampler seed, separate from dataset.seed (corpus/split selection).
+  data_seed: ${.seed}
