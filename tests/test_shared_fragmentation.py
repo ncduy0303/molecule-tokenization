@@ -51,6 +51,33 @@ MOLECULES = [
 
 
 class PartitionTests(unittest.TestCase):
+    def test_explicit_hydrogen_fragment_mapping_preserves_source_atoms(self):
+        from chemicalgof.reduce import Decompositer
+        from utils.shared_fragmentation import _fragment_strings, component_partitions
+        from utils.fragsmiles_utils import split_fragsmiles_tokens
+
+        smiles = "F[B-](F)(F)F.[H][H-][B-]1([H-][H])[n+]2ccccc2-c2cccc[n+]21"
+        partition = partition_molecule(smiles)
+        for part in component_partitions(partition):
+            pairs = [(part.mol.GetBondWithIdx(i).GetBeginAtomIdx(), part.mol.GetBondWithIdx(i).GetEndAtomIdx()) for i in part.cut_bonds]
+            d = Decompositer()
+            fragments = d.fragment(part.mol, pairs)
+            strings = _fragment_strings(d, fragments)
+            mapped = [source for mapping in d.mapsFrag2Mol for source in mapping.values()]
+            self.assertEqual(sorted(mapped), list(range(part.mol.GetNumAtoms())))
+            for text, mapping in zip(strings, d.mapsFrag2Mol):
+                mol = Chem.MolFromSmiles(text)
+                for local, source in mapping.items():
+                    a, b = mol.GetAtomWithIdx(local), part.mol.GetAtomWithIdx(source)
+                    self.assertEqual((a.GetAtomicNum(), a.GetIsotope(), a.GetFormalCharge()), (b.GetAtomicNum(), b.GetIsotope(), b.GetFormalCharge()))
+        for model in (None, SharedPSModel(("CC",), {})):
+            encoded = encode_shared(smiles, "fragsmiles", model)
+            self.assertIn("[HH]", split_fragsmiles_tokens(encoded, True))
+
+    def test_encoding_error_identifies_input(self):
+        with self.assertRaisesRegex(ValueError, "Shared fragsmiles encoding failed for SMILES 'bad-input'"):
+            encode_shared("bad-input", "fragsmiles")
+
     def test_hiv_metal_complex_does_not_refragment_into_cycle(self):
         from utils.fragsmiles_utils import split_fragsmiles_tokens
 

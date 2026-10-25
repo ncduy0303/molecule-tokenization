@@ -102,6 +102,49 @@ def component_partitions(partition):
         yield partition_from_cuts(mol, cuts)
 
 
+def _fragment_strings(decomposer, fragments):
+    """Keep legacy strings unless its hydrogen-removal index mapping fails."""
+    try:
+        return decomposer.ultimate_smiles(fragments)
+    except IndexError:
+        if not any(a.GetAtomicNum() == 1 for f in fragments for a in f.GetAtoms()):
+            raise
+
+    # Cap cut bonds with explicit H counts, not removable H atoms. In
+    # particular, [H] and [H-] atoms belonging to the source must survive.
+    decomposer.mapsFrag2Mol = []
+    decomposer.mapsMol2Frag = []
+    strings = []
+    for fragment, source_indices in zip(fragments, decomposer.fragsMap):
+        mol = Chem.RWMol(fragment)
+        Chem.RemoveStereochemistry(mol)
+        for atom in mol.GetAtoms():
+            atom.SetIntProp("_sharedOriginalIndex", atom.GetIdx())
+        dummies = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 0]
+        for idx in dummies:
+            dummy = mol.GetAtomWithIdx(idx)
+            if dummy.GetDegree() != 1:
+                raise ValueError("Expected a terminal cut-bond dummy")
+            neighbor = dummy.GetNeighbors()[0]
+            neighbor.SetNumExplicitHs(neighbor.GetNumExplicitHs() + 1)
+        for idx in sorted(dummies, reverse=True):
+            mol.RemoveAtom(idx)
+        Chem.SanitizeMol(mol)
+        text = Chem.MolToSmiles(mol)
+        order = mol.GetPropsAsDict(True, True)["_smilesAtomOutputOrder"]
+        parsed = Chem.MolFromSmiles(text)
+        if parsed is None or parsed.GetNumAtoms() != mol.GetNumAtoms():
+            raise ValueError("Hydrogen-preserving fragment serialization changed atom count")
+        mapping = {
+            new: source_indices[mol.GetAtomWithIdx(old).GetIntProp("_sharedOriginalIndex")]
+            for new, old in enumerate(order)
+        }
+        decomposer.mapsFrag2Mol.append(mapping)
+        decomposer.mapsMol2Frag.append({source: local for local, source in mapping.items()})
+        strings.append(text)
+    return strings
+
+
 def serialize_fragsmiles(partition):
     """Use chemicalgof 0.2's assembly machinery with explicit shared cuts.
 
@@ -134,7 +177,7 @@ def serialize_fragsmiles(partition):
             decomposer = Decompositer(EXOCYCLIC_SMARTS)
             fragments = decomposer.fragment(mol, pairs)
             neighbors = decomposer.frag_bonds(fragments, pairs)
-            strings = decomposer.ultimate_smiles(fragments)
+            strings = _fragment_strings(decomposer, fragments)
             chiral = {a: label.upper() for a, label in Chem.FindMolChiralCenters(mol, useLegacyImplementation=False)}
             attributes = decomposer.setup_nodes_attributes(strings, chiral, {a for p in pairs for a in p})
             graph = DiGraphFrags()
@@ -252,7 +295,10 @@ def decode_tsid(text):
 
 
 def encode_shared(smiles, representation, merge_model=None):
-    partition = partition_molecule(smiles, merge_model)
-    if representation == "fragsmiles":
-        return serialize_fragsmiles(partition)
-    return serialize_tsmiles(partition, representation)
+    try:
+        partition = partition_molecule(smiles, merge_model)
+        if representation == "fragsmiles":
+            return serialize_fragsmiles(partition)
+        return serialize_tsmiles(partition, representation)
+    except Exception as exc:
+        raise ValueError(f"Shared {representation} encoding failed for SMILES {smiles!r}: {exc}") from exc
