@@ -118,6 +118,15 @@ def serialize_fragsmiles(partition):
         mol = part.mol
         if not part.cut_bonds:
             graph = Reduce2GoF(mol=mol, capitalize_legacy=True)
+            if not nx.is_tree(graph.to_undirected()):
+                # Compatibility repair: preserve previously successful v2
+                # strings, but never send a cyclic re-fragmentation to the
+                # tree writer. The shared partition has exactly one node.
+                graph = DiGraphFrags()
+                chiral = {
+                    atom: label.upper() for atom, label in Chem.FindMolChiralCenters(mol, useLegacyImplementation=False)
+                }
+                graph.add_node(FragNode(smiles=Chem.MolToSmiles(mol), chirality=chiral))
         else:
             pairs = [
                 (mol.GetBondWithIdx(i).GetBeginAtomIdx(), mol.GetBondWithIdx(i).GetEndAtomIdx()) for i in part.cut_bonds

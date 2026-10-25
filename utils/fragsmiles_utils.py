@@ -21,7 +21,13 @@ def split_fragsmiles_tokens(text, preserve_components=False):
     for i, component in enumerate(text.split(";")):
         if i and preserve_components:
             tokens.append(";")
-        tokens.extend(token for token in chemicalgof.split(component) if token)
+        # chemicalgof 0.2 treats angle brackets in dative bonds as fragment
+        # connectors. Protect only arrows while splitting, then restore them
+        # so the original molecular fragment remains a single vocabulary item.
+        protected = component.replace("->", "\ue000").replace("<-", "\ue001")
+        tokens.extend(
+            token.replace("\ue000", "->").replace("\ue001", "<-") for token in chemicalgof.split(protected) if token
+        )
     return tokens
 
 

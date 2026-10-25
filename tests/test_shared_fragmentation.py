@@ -51,6 +51,19 @@ MOLECULES = [
 
 
 class PartitionTests(unittest.TestCase):
+    def test_hiv_metal_complex_does_not_refragment_into_cycle(self):
+        from utils.fragsmiles_utils import split_fragsmiles_tokens
+
+        smiles = "C1C[N+]23CCC[N+]4(C1)CC[S-]1[Fe+2]24([SH+]CC3)[S-]2CC[N+]34CCC[N+]5(CCC3)CC[SH+][Fe+2]1254"
+        for model in (None, SharedPSModel(("CC",), {})):
+            partition = partition_molecule(smiles, model)
+            self.assertEqual(partition.cut_bonds, ())
+            encoded = serialize_fragsmiles(partition)
+            # A single fragment, not connection markers accidentally parsed
+            # from RDKit's dative arrows, and the source graph is retained.
+            self.assertEqual(split_fragsmiles_tokens(encoded, True), [encoded])
+            self.assertEqual(encoded, Chem.MolToSmiles(partition.mol))
+
     def test_tsis_preserves_fragments_and_reconstructs_without_tree_placeholders(self):
         model = train_shared_ps(MOLECULES, num_merges=12, min_frequency=1)
         for smiles in MOLECULES:
