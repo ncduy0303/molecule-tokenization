@@ -2,19 +2,77 @@
 # Preview by default. Run with --submit to prepare caches and submit all trials.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-mode=${1:---dry-run}
-if [[ "$mode" != --dry-run && "$mode" != --submit ]]; then
-  echo "Usage: bash scripts/submit_shared_seed_trials.sh [--dry-run|--submit]" >&2
-  exit 1
-fi
+mode=--dry-run
+preview=false
+for arg in "$@"; do
+  case "$arg" in
+    --submit|--resume) mode=$arg ;;
+    --dry-run) preview=true ;;
+    *) echo "Usage: bash $0 [--submit|--resume] [--dry-run]" >&2; exit 1 ;;
+  esac
+done
 study=outputs/shared_study_2m_v2
 cache_root=data/shared_study_2m_v2/seed_trials
 output_root=$study/seed_trials
 receipt=$output_root/submissions.log
-if [[ -e "$receipt" ]]; then
-  echo "Submission receipt already exists: $receipt. Inspect it before submitting again." >&2
+if [[ "$mode" == --submit && -e "$receipt" ]]; then
+  echo "Receipt exists. Use --resume to skip recorded submissions." >&2
   exit 1
 fi
+if [[ "$mode" == --resume && ! -s "$receipt" ]]; then
+  echo "Cannot resume without the original receipt: $receipt" >&2
+  exit 1
+fi
+if [[ "$mode" == --dry-run ]]; then preview=true; fi
+lock=
+submitted=$(mktemp)
+cleanup() {
+  rm -f "$submitted"
+  if [[ -n "$lock" ]]; then rmdir "$lock"; fi
+}
+trap cleanup EXIT
+if [[ "$preview" == false ]]; then
+  command -v sbatch >/dev/null
+  mkdir -p "$output_root"
+  if ! mkdir "$output_root/.submission-lock"; then
+    echo "Another submitter may be active. Inspect .submission-lock before retrying." >&2
+    exit 1
+  fi
+  lock=$output_root/.submission-lock
+fi
+
+# A command line is not evidence of acceptance. Only an acknowledged Slurm ID
+# marks a trial submitted. An interrupted/ambiguous attempt requires inspection.
+python3 - "$receipt" > "$submitted" <<'PYLOG'
+import re
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+accepted = {}
+name = None
+resolved = True
+for line in path.read_text().splitlines() if path.exists() else []:
+    match = re.match(r"Submitting: .*[/]\.job_(SHARED-V2-[^/]+)\.sh$", line)
+    if match:
+        if name and not resolved:
+            sys.exit(f"Ambiguous previous submission for {name}; inspect Slurm before retrying.")
+        name, resolved = match[1], False
+    match = re.fullmatch(r"Submitted batch job (\d+)", line)
+    if match and name:
+        if name in accepted and accepted[name] != match[1]:
+            sys.exit(f"Multiple job IDs recorded for {name}; inspect receipt.")
+        accepted[name] = match[1]
+        resolved = True
+    if line.startswith('sbatch: error: Batch job submission failed:'):
+        resolved = True
+if name and not resolved:
+    sys.exit(f"Submission outcome unknown for {name}; check squeue/sacct before retrying. Keep the receipt.")
+for name, job in accepted.items():
+    print(name, job)
+PYLOG
+submitted_job() {
+  awk -v name="$1" '$1 == name {print $2}' "$submitted"
+}
 
 # Check every input before submitting any jobs. Copy only completed downstream
 # caches, including their provenance sidecars, before concurrent readers start.
@@ -47,6 +105,8 @@ for condition in base ps; do
       done
       for seed in 42 43 44; do
         destination=$output_root/${key}_${task}/seed${seed}
+        name=SHARED-V2-${condition}-${rep}-${task}-SEED${seed}
+        if [[ -n "$(submitted_job "$name")" ]]; then continue; fi
         [[ ! -e "$destination" ]] || { echo "Output already exists: $destination" >&2; exit 1; }
       done
     done
@@ -54,27 +114,33 @@ for condition in base ps; do
 done
 [[ -s "$study/miner/ps_merges.json" ]] || { echo 'Missing PS merge model' >&2; exit 1; }
 
-if [[ "$mode" == --submit ]]; then
-  command -v sbatch >/dev/null
-  mkdir -p "$cache_root" "$output_root"
-  for condition in base ps; do
-    for rep in fragsmiles TSID TSDY TSIS; do
-      for task in hiv bbbp; do
-        key=${condition}_${rep}_${task}
-        source=data/shared_study_2m_v2/$key
-        if [[ "$rep" == fragsmiles && "$task" == hiv ]]; then source=${source}_repair2; fi
-        # Never merge a fresh source into a possibly partial existing copy.
-        [[ ! -e "$cache_root/$key" ]] || { echo "Cache already exists: $cache_root/$key" >&2; exit 1; }
-      done
+# Existing copied caches must match their original files. Never overwrite them.
+for condition in base ps; do
+  for rep in fragsmiles TSID TSDY TSIS; do
+    for task in hiv bbbp; do
+      key=${condition}_${rep}_${task}
+      source=data/shared_study_2m_v2/$key
+      if [[ "$rep" == fragsmiles && "$task" == hiv ]]; then source=${source}_repair2; fi
+      if [[ -e "$cache_root/$key" ]]; then
+        for file in "$source"/*; do
+          [[ -f "$file" ]] || continue
+          cmp -s "$file" "$cache_root/$key/$(basename "$file")" || {
+            echo "Existing cache differs or is incomplete: $cache_root/$key" >&2; exit 1;
+          }
+        done
+      fi
     done
   done
+done
+if [[ "$preview" == false ]]; then
+  mkdir -p "$cache_root"
   for condition in base ps; do
     for rep in fragsmiles TSID TSDY TSIS; do
       for task in hiv bbbp; do
         key=${condition}_${rep}_${task}
         source=data/shared_study_2m_v2/$key
         if [[ "$rep" == fragsmiles && "$task" == hiv ]]; then source=${source}_repair2; fi
-        cp -R "$source" "$cache_root/$key"
+        if [[ ! -e "$cache_root/$key" ]]; then cp -R "$source" "$cache_root/$key"; fi
       done
     done
   done
@@ -93,6 +159,11 @@ for condition in base ps; do
     for task in hiv bbbp; do
       for seed in 42 43 44; do
         name=SHARED-V2-${condition}-${rep}-${task}-SEED${seed}
+        job=$(submitted_job "$name")
+        if [[ -n "$job" ]]; then
+          echo "Skipping $name: already submitted as $job"
+          continue
+        fi
         command=(bash scripts/submit_gpu.sh "$name"
           experiment=downstream_classification "dataset=molnet_$task"
           "${representation[@]}" dataset.fragmentation=exocyclic
@@ -104,8 +175,11 @@ for condition in base ps; do
           experiment.training.num_train_epochs=5 experiment.training.early_stopping_patience=3
           wandb.mode=online wandb.entity=ncduy0303 wandb.project=molecule-tokenization
           "hydra.run.dir=$output_root/${key}_${task}/seed${seed}")
-        if [[ "$mode" == --submit ]]; then
-          WANDB_TAGS="shared_study_2m_v2,$condition,$rep,$task,seed$seed" "${command[@]}" 2>&1 | tee -a "$receipt"
+        if [[ "$preview" == false ]]; then
+          if ! WANDB_TAGS="shared_study_2m_v2,$condition,$rep,$task,seed$seed" "${command[@]}" 2>&1 | tee -a "$receipt"; then
+            echo "Submission stopped. Keep submissions.log; use --resume after resolving the Slurm error." >&2
+            exit 1
+          fi
         else
           printf '%q ' "${command[@]}"
           printf '\n'
