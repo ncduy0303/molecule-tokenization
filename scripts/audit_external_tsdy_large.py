@@ -24,6 +24,34 @@ from utils.tsmiles_tokenizer import split_tsmiles_tokens
 from utils.cache_utils import file_digest
 
 
+def check_scope(results, source_hashes, contract):
+    failures = [
+        dict(
+            group=r["group"],
+            row=r["row"],
+            error=r["error"],
+            smiles_sha256=hashlib.sha256(r["smiles"].encode()).hexdigest(),
+        )
+        for r in results
+        if not r["ok"]
+    ]
+    key = lambda r: (r["group"], r["row"])
+    length_failures = [
+        dict(group=r["group"], row=r["row"], tokens=r["compact_length"])
+        for r in results
+        if r["ok"] and r["compact_length"] > contract["max_content_tokens"]
+    ]
+    source_matches = source_hashes == contract["source_hashes"]
+    scope_matches = sorted(failures, key=key) == sorted(contract["known_unsupported"], key=key)
+    return dict(
+        passed=source_matches and scope_matches and not length_failures,
+        source_matches=source_matches,
+        unsupported_matches=scope_matches,
+        unsupported=failures,
+        overlength=length_failures,
+    )
+
+
 def worker(item):
     RDLogger.DisableLog("rdApp.*")
     group, row, smiles = item
@@ -56,6 +84,11 @@ def main():
     p.add_argument("--workers", type=int, default=8)
     p.add_argument("--train-limit", type=int, default=10000)
     p.add_argument("--validation-limit", type=int, default=2000)
+    p.add_argument(
+        "--scope-contract",
+        type=Path,
+        help="Fail if sources, unsupported rows, or supported sequence lengths differ from this fixed audit contract",
+    )
     a = p.parse_args()
     if a.output.exists():
         p.error("Output exists")
@@ -118,6 +151,14 @@ def main():
     report = dict(
         token_format=TOKEN_FORMAT,
         rdkit=rdBase.rdkitVersion,
+        implementation_hashes={
+            name: file_digest(name)
+            for name in (
+                "utils/external_tsdy.py",
+                "utils/shared_fragmentation.py",
+                "scripts/audit_external_tsdy_large.py",
+            )
+        },
         source_hashes=hashes,
         groups=groups,
         vocab=dict(
@@ -137,12 +178,17 @@ def main():
             "No downstream labels used for representation or vocabulary fitting. Metrics on common supported rows only.",
         ],
     )
+    if a.scope_contract:
+        report["scope_contract_sha256"] = file_digest(a.scope_contract)
+        report["scope_check"] = check_scope(results, hashes, json.loads(a.scope_contract.read_text()))
     a.output.mkdir(parents=True)
     (a.output / "summary.json").write_text(json.dumps(report, indent=2) + "\n")
     with (a.output / "rows.jsonl").open("w") as f:
         for r in results:
             f.write(json.dumps(r) + "\n")
     print(json.dumps(report, indent=2))
+    if a.scope_contract and not report["scope_check"]["passed"]:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,19 @@
+{
+  "source_hashes": {
+    "data/shared_study_2m_v2/miner/corpus.txt": "1f20ce23eb37d3bad92faca5f355f143b3a6b81dcf9c1a8cbd89ff133fc74bc5",
+    "data/shared_study_2m_v2/base_fragsmiles_hiv_repair2/hiv.csv": "b72f0cf00cd1f45ae5c415f21aef10e69187e30dd24029ddb345fbca35b0d798",
+    "data/shared_study_2m_v2/base_fragsmiles_hiv_repair2/hiv_split_indices.json": "d958a4fb5828a24fb6b67944e69da6064ca3eb07f64512a887fd0e52a66dd576",
+    "data/shared_study_2m_v2/base_fragsmiles_bbbp/bbbp.csv": "6aecd84110e8c0549bc4e2e486c52267d4e775178fca8999f5465029e31e75bb",
+    "data/shared_study_2m_v2/base_fragsmiles_bbbp/bbbp_split_indices.json": "37cbb48d9a403f132bb0cb9ce4e8e5bb87255b6b66a1c2c98a410621305041fe"
+  },
+  "known_unsupported": [
+    {
+      "group": "hiv_train",
+      "row": 35278,
+      "smiles_sha256": "42d3a55697f8676f5f134fa5127d74421cd9bdb7a2bdf922258d83cb064b60bd",
+      "error": "Nonstandard bond chemistry is outside prototype scope"
+    }
+  ],
+  "max_content_tokens": 510,
+  "note": "Audit expectations only. No input is dropped. Unsupported HIV training chemistry needs a common supported-domain policy before model comparisons."
+}

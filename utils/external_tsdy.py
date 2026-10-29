@@ -14,12 +14,38 @@ from utils.shared_fragmentation import partition_molecule, component_partitions,
 FORMAT = "external-tsdy-v1"
 
 
+def _sanitize_core(mol):
+    """Validate caps without normalizing away source bond/charge information.
+
+    Capping can make hypervalent iodine eligible for cleanup, or make a
+    previously nonaromatic ring aromatic. Those normalizations are not
+    reversible when the caps are replaced with the original attachments.
+    Run normal valence, radical and kekulization validation, then restore the
+    source bond representation. Skipping kekulization entirely would change
+    the computed state of ordinary aromatic sulfur cores.
+    """
+    bonds = [(b.GetBondType(), b.GetIsAromatic()) for b in mol.GetBonds()]
+    atoms = [a.GetIsAromatic() for a in mol.GetAtoms()]
+    Chem.SanitizeMol(
+        mol,
+        sanitizeOps=Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_CLEANUP,
+    )
+    for bond, (kind, aromatic) in zip(mol.GetBonds(), bonds):
+        bond.SetBondType(kind)
+        bond.SetIsAromatic(aromatic)
+    for atom, aromatic in zip(mol.GetAtoms(), atoms):
+        atom.SetIsAromatic(aromatic)
+    mol.UpdatePropertyCache(strict=True)
+
+
 def parse_core(text):
     params = Chem.SmilesParserParams()
     params.removeHs = False
+    params.sanitize = False
     mol = Chem.MolFromSmiles(text, params)
     if mol is None or any(a.GetAtomicNum() == 0 or a.GetAtomMapNum() for a in mol.GetAtoms()):
         raise ValueError("Invalid clean fragment")
+    _sanitize_core(mol)
     return mol
 
 
@@ -47,7 +73,7 @@ def _component(part):
             if i not in group:
                 rw.RemoveAtom(i)
         core = rw.GetMol()
-        Chem.SanitizeMol(core)
+        _sanitize_core(core)
         text = Chem.MolToSmiles(core, canonical=True, isomericSmiles=True)
         order = list(core.GetPropsAsDict(includePrivate=True, includeComputed=True)["_smilesAtomOutputOrder"])
         parsed = parse_core(text)
@@ -655,7 +681,7 @@ def decode_tokens(tokens):
     return decode(json.dumps(dict(format=FORMAT, components=components)))
 
 
-TOKEN_FORMAT = "external-tsdy-v3"
+TOKEN_FORMAT = "external-tsdy-v3.1"
 
 
 def checked_training_tokens(smiles, max_content_tokens=510):

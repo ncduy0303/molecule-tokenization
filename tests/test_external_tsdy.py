@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import unittest
 from rdkit import Chem
 from utils.external_tsdy import (
@@ -10,6 +11,7 @@ from utils.external_tsdy import (
     COMPACT_GRAMMAR,
     molecules_equal,
     model_tokens_v2,
+    parse_core,
 )
 
 CASES = [
@@ -40,6 +42,31 @@ CASES = [
 
 
 class ExternalTSDYTests(unittest.TestCase):
+    def test_full_corpus_capping_regressions(self):
+        cases = json.loads((Path(__file__).parent / "fixtures/external_tsdy_capping.json").read_text())
+        for case in cases:
+            with self.subTest(row=case["row"]):
+                smi = case["smiles"]
+                text = encode(smi)
+                self.assertTrue(molecules_equal(smi, decode(text)))
+                self.assertTrue(molecules_equal(smi, decode_tokens(model_tokens(text))))
+                # Cores must remain canonical under randomized source ordering.
+                randomized = Chem.MolToSmiles(Chem.MolFromSmiles(smi), doRandom=True)
+                self.assertEqual(model_tokens(text), model_tokens(encode(randomized)))
+
+    def test_core_bond_state_preserved_and_invalid_aromaticity_rejected(self):
+        core = parse_core("O=[IH]=O")
+        self.assertTrue(all(b.GetBondType() == Chem.BondType.DOUBLE for b in core.GetBonds()))
+        self.assertTrue(all(a.GetFormalCharge() == 0 for a in core.GetAtoms()))
+        localized = parse_core("C1=CC=CC=C1")
+        self.assertFalse(any(a.GetIsAromatic() for a in localized.GetAtoms()))
+        self.assertTrue(all(a.GetIsAromatic() for a in parse_core("c1ccccc1").GetAtoms()))
+        sulfur_core = parse_core("c1ccsc1")
+        self.assertTrue(all(a.GetNumRadicalElectrons() == 0 for a in sulfur_core.GetAtoms()))
+        self.assertIn("c1ccsc1", json.loads(encode("Cc1ccsc1"))["components"][0]["cores"])
+        with self.assertRaises(ValueError):
+            parse_core("c1cccc1")
+
     def test_roundtrip_and_randomized_inputs(self):
         for smi in CASES:
             mol = Chem.MolFromSmiles(smi)

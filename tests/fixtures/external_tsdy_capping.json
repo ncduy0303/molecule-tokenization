@@ -1,0 +1,190 @@
+[
+  {
+    "row": 42845,
+    "smiles": "C#CCc1cccc(OP(=O)([O-])[O-])c1I(=O)=O"
+  },
+  {
+    "row": 54407,
+    "smiles": "CCCCCCCCc1cc(CCCCCCCC)c2cc(C(=O)[O-])c([IH2]=O)c(CCCCCCCC)c2c1CCCCCCCC"
+  },
+  {
+    "row": 66717,
+    "smiles": "C1=C2C3=C4C5=C(C6=C3[N+](c3ccccc3)(c3ccccc3)C3(Nc7ccc5cc7)C6=CCc5ccccc53)C24c2ccccc2C1"
+  },
+  {
+    "row": 67720,
+    "smiles": "O=I(=O)c1ccc(F)cc1OP(=O)([O-])[O-]"
+  },
+  {
+    "row": 86838,
+    "smiles": "O=[IH2]c1c(C(=O)[O-])ccc2c(Br)cccc12"
+  },
+  {
+    "row": 120586,
+    "smiles": "CCCCCCCCCCCCCCCCCCOc1cccc(O)c1I(=O)=O"
+  },
+  {
+    "row": 132592,
+    "smiles": "O=C([O-])C(=CI(=O)=O)S(=O)(=O)[O-]"
+  },
+  {
+    "row": 198872,
+    "smiles": "O=[N+]([O-])c1ccc(I(=O)=O)c([N+](=O)[O-])c1"
+  },
+  {
+    "row": 240041,
+    "smiles": "O=[IH2]c1cc2c(O)cccc2cc1C(=O)[O-]"
+  },
+  {
+    "row": 346507,
+    "smiles": "O=C([O-])c1c(I)cc2ccccc2c1I(=O)=O"
+  },
+  {
+    "row": 353695,
+    "smiles": "O=[IH2]c1ccc(O)cc1C(=O)[O-]"
+  },
+  {
+    "row": 496921,
+    "smiles": "O=I(=O)c1ccc(S(=O)(=O)[O-])cc1"
+  },
+  {
+    "row": 552800,
+    "smiles": "O=[IH2]c1c(C(=O)[O-])cc(F)c(C(=O)[O-])c1F"
+  },
+  {
+    "row": 608931,
+    "smiles": "O=[IH2]c1c(Cl)cc(Cl)cc1CC(=O)[O-]"
+  },
+  {
+    "row": 644770,
+    "smiles": "C[NH+](C)C([IH2]=O)c1cn(C(c2ccccc2)(c2ccccc2)c2ccccc2)cn1"
+  },
+  {
+    "row": 681508,
+    "smiles": "CCCCCCCCI(=O)=O"
+  },
+  {
+    "row": 714343,
+    "smiles": "CCCCCCCCCCCCCCCCCCc1cc2c(CCCCCCCCCCCCCCCCCC)cccc2c([IH2]=O)c1C(=O)[O-]"
+  },
+  {
+    "row": 728627,
+    "smiles": "O=C([O-])c1cc(I(=O)=O)c(C(=O)[O-])cc1F"
+  },
+  {
+    "row": 764768,
+    "smiles": "O=C([O-])c1cc([N+](=O)[O-])c([N+](=O)[O-])c(C(=O)[O-])c1I(=O)=O"
+  },
+  {
+    "row": 820144,
+    "smiles": "CC(=O)NC(=O)c1cc(OCCO)ccc1I(=O)=O"
+  },
+  {
+    "row": 838514,
+    "smiles": "O=[IH2]C(F)(F)C(F)(F)C(F)(F)F"
+  },
+  {
+    "row": 843566,
+    "smiles": "Cc1cc2c(C)cccc2c(I(=O)=O)c1C(=O)[O-]"
+  },
+  {
+    "row": 849833,
+    "smiles": "CCCCCCCCCCCCCCCCCCOc1cc2ccccc2c([IH2]=O)c1C(=O)[O-]"
+  },
+  {
+    "row": 853804,
+    "smiles": "O=[IH2]c1ccc(Oc2ccc([N+](=O)[O-])cc2[N+](=O)[O-])cc1"
+  },
+  {
+    "row": 1063673,
+    "smiles": "CC(C)(C)C(=O)N(Cc1ccccc1)c1ccccc1I(=O)=O"
+  },
+  {
+    "row": 1099256,
+    "smiles": "O=[IH2]c1cccc(C(=O)[O-])c1"
+  },
+  {
+    "row": 1117882,
+    "smiles": "O=[IH2]c1c(O)cc(O)cc1O"
+  },
+  {
+    "row": 1119661,
+    "smiles": "O=[IH2]CC(=O)[O-]"
+  },
+  {
+    "row": 1124067,
+    "smiles": "O=C(CNC(=O)c1ccc([N+](=O)[O-])c(I(=O)=O)c1)OCc1ccccc1"
+  },
+  {
+    "row": 1144757,
+    "smiles": "CCCCCCCCCCCCCCCCCC(=O)NC(=O)c1cccc(C(C)=O)c1I(=O)=O"
+  },
+  {
+    "row": 1161364,
+    "smiles": "CCCCCCCCCCCCCCCCCC(=O)NC(=O)c1cc(Br)cc(Br)c1[IH2]=O"
+  },
+  {
+    "row": 1300439,
+    "smiles": "COC(=O)c1cc2c(c(-c3c4c(cc(C(=O)OC)c3[IH2]=O)CCCC4)c1[IH2]=O)CCCC2"
+  },
+  {
+    "row": 1333193,
+    "smiles": "COC(=O)C(Oc1cccc(OC(C(=O)OC)C(C)C)c1I(=O)=O)C(C)C"
+  },
+  {
+    "row": 1373334,
+    "smiles": "CCCCCCCCCCC=CCCCCCCc1cccc2c(C(=O)[O-])c(I(=O)=O)ccc12"
+  },
+  {
+    "row": 1454636,
+    "smiles": "O=C([O-])c1ccc(C(=O)[O-])c(I(=O)=O)c1I"
+  },
+  {
+    "row": 1460863,
+    "smiles": "O=C([O-])c1ccc2c(C3CCCCC3)cccc2c1I(=O)=O"
+  },
+  {
+    "row": 1525157,
+    "smiles": "O=C([O-])c1ccc2c(-c3ccccc3)cccc2c1I(=O)=O"
+  },
+  {
+    "row": 1530567,
+    "smiles": "CCCCCCCCCCCCCCCCCCc1cc(CCCCCCCCCCCCCCCCCC)c([IH2]=O)c(S(=O)(=O)[O-])c1"
+  },
+  {
+    "row": 1566453,
+    "smiles": "O=[IH2]CCOc1ccccc1"
+  },
+  {
+    "row": 1567387,
+    "smiles": "C#CCc1cc2ccccc2c(I(=O)=O)c1C(=O)[O-]"
+  },
+  {
+    "row": 1582642,
+    "smiles": "O=C([O-])Cc1cc(OCCO)ccc1I(=O)=O"
+  },
+  {
+    "row": 1606099,
+    "smiles": "O=[IH2]c1c(O)cc(I)cc1I"
+  },
+  {
+    "row": 1607732,
+    "smiles": "O=I(=O)c1ccc(C(F)(F)F)cc1"
+  },
+  {
+    "row": 1746528,
+    "smiles": "O=C([O-])c1cc2cccc(Cl)c2cc1I(=O)=O"
+  },
+  {
+    "row": 1792800,
+    "smiles": "O=C([O-])c1c(I(=O)=O)ccc2c(Cl)cccc12"
+  },
+  {
+    "row": 1823233,
+    "smiles": "COc1ccc([IH2]=O)cc1"
+  },
+  {
+    "row": 1895285,
+    "smiles": "CC(=O)c1ccccc1[IH2]=O"
+  }
+]
