@@ -122,6 +122,12 @@ class CompactSyntaxTests(unittest.TestCase):
 
 
 class MolecularEqualityTests(unittest.TestCase):
+    def test_bridged_ring_aromaticity_regression(self):
+        source = "c1ccc(C2c3cccc2c3)cc1"
+        self.assertTrue(molecules_equal(source, "C1=CC2=CC(=C1)C2c1ccccc1"))
+        self.assertTrue(molecules_equal(source, decode_tokens(model_tokens(encode(source)))))
+        self.assertFalse(molecules_equal(source, "c1ccc(CC2CCCCC2)cc1"))
+
     def test_stereo_and_chemical_changes_not_accepted(self):
         for a, b in [
             ("C[C@H](O)F", "C[C@@H](O)F"),

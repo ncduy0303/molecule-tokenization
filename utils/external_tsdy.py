@@ -132,6 +132,17 @@ def molecules_equal(left, right):
             return False
         if any(x.GetStereo() != Chem.BondStereo.STEREONONE for x in mol.GetBonds()):
             return False
+    # RDKit can assign different aromatic flags to the same bridged-ring
+    # graph depending on atom order. Accept only an identical explicit-bond
+    # graph after kekulization, and only within the achiral scope above.
+    ka, kb = Chem.Mol(a), Chem.Mol(b)
+    try:
+        Chem.Kekulize(ka, clearAromaticFlags=True)
+        Chem.Kekulize(kb, clearAromaticFlags=True)
+        if Chem.MolToSmiles(ka, isomericSmiles=True) == Chem.MolToSmiles(kb, isomericSmiles=True):
+            return True
+    except (ValueError, RuntimeError):
+        pass
     mapping = b.GetSubstructMatch(a, useChirality=True)
     if not mapping:
         return False
