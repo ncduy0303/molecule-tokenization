@@ -63,6 +63,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
         "bpe_classifier": MoleculeClassificationAlgo,
         "fragsmiles_classifier": MoleculeClassificationAlgo,
         "tsmiles_classifier": MoleculeClassificationAlgo,
+        "external_tsdy_classifier": MoleculeClassificationAlgo,
         "ps_fragsmiles_classifier": MoleculeClassificationAlgo,
         "pcatt_classifier": MoleculeClassificationAlgo,
         "smirk_classifier": MoleculeClassificationAlgo,
@@ -112,7 +113,15 @@ class DownstreamClassificationExperiment(BaseExperiment):
         tokenizer = self.algo.tokenizer
 
         # ── Load dataset ────────────────────────────────────────────────
-        dataset = load_molnet(self.root_cfg.dataset, tokenizer)
+        if self.root_cfg.dataset.get("prepared_path"):
+            from datamodules.molecule_datasets.prepared import load_prepared
+
+            dataset = load_prepared(self.root_cfg.dataset, tokenizer)
+            from datamodules.molecule_datasets.prepared import record_prepared_input
+
+            record_prepared_input(self.root_cfg.dataset, self.output_dir)
+        else:
+            dataset = load_molnet(self.root_cfg.dataset, tokenizer)
 
         # Infer num_labels from data
         sample_labels = dataset["train"][0]["labels"]
@@ -140,6 +149,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
         t = self.cfg.training
         training_args = TrainingArguments(
             output_dir=str(self.output_dir),
+            use_cpu=self.cfg.training.get("use_cpu", False),
             run_name=self.root_cfg.name,
             # Training
             per_device_train_batch_size=t.per_device_train_batch_size,
@@ -213,6 +223,9 @@ class DownstreamClassificationExperiment(BaseExperiment):
         print(cyan("Test ROC-AUC:"), f"{test_results.get('test_roc_auc', 0):.4f}")
         print(cyan("Test loss:"), f"{test_results['test_loss']:.4f}")
 
+        trainer.save_metrics("validation", val_results)
+        trainer.save_metrics("test", test_results)
+
         # ── Save ────────────────────────────────────────────────────────
         final_dir = self.output_dir / "best_model"
         trainer.save_model(str(final_dir))
@@ -227,7 +240,15 @@ class DownstreamClassificationExperiment(BaseExperiment):
             self._build_algo()
 
         tokenizer = self.algo.tokenizer
-        dataset = load_molnet(self.root_cfg.dataset, tokenizer)
+        if self.root_cfg.dataset.get("prepared_path"):
+            from datamodules.molecule_datasets.prepared import load_prepared
+
+            dataset = load_prepared(self.root_cfg.dataset, tokenizer)
+            from datamodules.molecule_datasets.prepared import record_prepared_input
+
+            record_prepared_input(self.root_cfg.dataset, self.output_dir)
+        else:
+            dataset = load_molnet(self.root_cfg.dataset, tokenizer)
 
         num_labels = len(dataset["train"][0]["labels"])
         self._seed_rng()
@@ -237,6 +258,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
 
         training_args = TrainingArguments(
             output_dir=str(self.output_dir),
+            use_cpu=self.cfg.training.get("use_cpu", False),
             run_name=self.root_cfg.name,
             per_device_eval_batch_size=self.cfg.training.per_device_eval_batch_size,
             seed=self.cfg.training.seed,

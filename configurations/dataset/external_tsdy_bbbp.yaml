@@ -1,0 +1,10 @@
+defaults:
+  - base_dataset
+
+name: external_tsdy_bbbp
+prepared_path: data/enhanced_tsdy_v3_1/enhanced_bbbp
+prepared_task: bbbp
+max_length: 512
+allow_smoke: false
+seed: 42
+molnet_name: bbbp

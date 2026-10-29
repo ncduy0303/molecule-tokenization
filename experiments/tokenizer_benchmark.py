@@ -48,6 +48,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         "fragsmiles_roberta": MoleculeMLMAlgo,
         "ps_fragsmiles_roberta": MoleculeMLMAlgo,
         "tsmiles_roberta": MoleculeMLMAlgo,
+        "external_tsdy_roberta": MoleculeMLMAlgo,
         "ape_roberta_pretrained": MoleculeMLMAlgo,
         "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }
@@ -123,6 +124,10 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
 
         # Load and tokenize dataset (supports both 2-way and 3-way splits)
         dataset = self._load_dataset()
+        if self.root_cfg.dataset.get("prepared_path"):
+            from datamodules.molecule_datasets.prepared import record_prepared_input
+
+            record_prepared_input(self.root_cfg.dataset, self.output_dir)
 
         has_val = "validation" in dataset
         eval_split = "validation" if has_val else "test"
@@ -141,6 +146,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         t = self.cfg.training
         training_args = TrainingArguments(
             output_dir=str(self.output_dir),
+            use_cpu=self.cfg.training.get("use_cpu", False),
             run_name=self.root_cfg.name,
             # Training
             per_device_train_batch_size=t.per_device_train_batch_size,
@@ -189,17 +195,21 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
 
         trainer.train(resume_from_checkpoint=str(self.ckpt_path) if self.ckpt_path else None)
 
+        trainer.save_metrics("train", trainer.state.log_history[-1] if trainer.state.log_history else {})
+
         # Validation eval (final)
         val_results = trainer.evaluate(eval_dataset=dataset[eval_split])  # type: ignore
+        trainer.save_metrics("validation", val_results)
         val_ppl = math.exp(val_results["eval_loss"])
         print(cyan(f"Final {eval_split} loss:"), f"{val_results['eval_loss']:.4f}")
         print(cyan(f"Final {eval_split} perplexity:"), f"{val_ppl:.2f}")
 
         # Test evaluation (separate split, run once at the very end)
         if has_val and has_test:
-            test_results = trainer.evaluate(eval_dataset=dataset["test"])  # type: ignore
-            test_ppl = math.exp(test_results["eval_loss"])
-            print(cyan("Test loss:"), f"{test_results['eval_loss']:.4f}")
+            test_results = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix="test")  # type: ignore
+            trainer.save_metrics("test", test_results)
+            test_ppl = math.exp(test_results["test_loss"])
+            print(cyan("Test loss:"), f"{test_results['test_loss']:.4f}")
             print(cyan("Test perplexity:"), f"{test_ppl:.2f}")
 
         # Save the final model checkpoint
@@ -231,6 +241,10 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
 
         # Load dataset
         dataset = self._load_dataset()
+        if self.root_cfg.dataset.get("prepared_path"):
+            from datamodules.molecule_datasets.prepared import record_prepared_input
+
+            record_prepared_input(self.root_cfg.dataset, self.output_dir)
 
         has_val = "validation" in dataset
         has_test = "test" in dataset
@@ -244,6 +258,7 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
 
         training_args = TrainingArguments(
             output_dir=str(self.output_dir),
+            use_cpu=self.cfg.training.get("use_cpu", False),
             run_name=self.root_cfg.name,
             per_device_eval_batch_size=self.cfg.training.per_device_eval_batch_size,
             report_to=report_to,

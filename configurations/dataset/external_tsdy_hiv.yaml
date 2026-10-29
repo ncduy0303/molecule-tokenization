@@ -1,0 +1,10 @@
+defaults:
+  - base_dataset
+
+name: external_tsdy_hiv
+prepared_path: data/enhanced_tsdy_v3_1/enhanced_hiv
+prepared_task: hiv
+max_length: 512
+allow_smoke: false
+seed: 42
+molnet_name: hiv

@@ -1,0 +1,6 @@
+defaults:
+  - base_roberta
+
+tokenizer:
+  type: external_tsdy
+  pretrained: outputs/enhanced_tsdy_v3_1/tokenizer

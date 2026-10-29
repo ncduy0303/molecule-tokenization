@@ -62,6 +62,10 @@ class MoleculeClassificationAlgo:
             from utils.ps_fragsmiles_tokenizer import PSFragSMILESTokenizer
 
             tokenizer = PSFragSMILESTokenizer.from_pretrained(tok_cfg.pretrained)
+        elif tok_type == "external_tsdy":
+            from utils.external_tsdy_tokenizer import ExternalTSDYTokenizer
+
+            tokenizer = ExternalTSDYTokenizer.from_pretrained(tok_cfg.pretrained, local_files_only=True)
         elif tok_type == "tsmiles":
             from utils.tsmiles_tokenizer import TSMILESTokenizer
 
@@ -69,7 +73,7 @@ class MoleculeClassificationAlgo:
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt', 'fragsmiles', 'ps_fragsmiles', 'tsmiles'."
+                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt', 'fragsmiles', 'ps_fragsmiles', 'tsmiles', 'external_tsdy'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)
@@ -89,6 +93,13 @@ class MoleculeClassificationAlgo:
         from transformers import RobertaForSequenceClassification
 
         finetuned = self.cfg.model.get("finetuned", None)
+        if self.cfg.get("tokenizer", {}).get("type") == "external_tsdy":
+            from transformers import AutoConfig
+            from utils.external_tsdy_tokenizer import tokenizer_identity
+
+            saved = AutoConfig.from_pretrained(finetuned or self.cfg.model.pretrained)
+            if getattr(saved, "molecular_tokenizer_identity", None) != tokenizer_identity(self.tokenizer):
+                raise ValueError("Classifier checkpoint and enhanced tokenizer identities differ")
         if finetuned:
             # Load an already-finetuned classifier (weights + head)
             self.model = RobertaForSequenceClassification.from_pretrained(

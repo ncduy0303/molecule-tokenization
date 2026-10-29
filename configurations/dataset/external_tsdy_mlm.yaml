@@ -1,0 +1,9 @@
+defaults:
+  - base_dataset
+
+name: external_tsdy_mlm
+prepared_path: data/enhanced_tsdy_v3_1/enhanced_mlm
+prepared_task: mlm
+max_length: 512
+allow_smoke: false
+seed: 42

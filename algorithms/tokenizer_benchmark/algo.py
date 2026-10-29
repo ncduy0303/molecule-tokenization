@@ -61,6 +61,10 @@ class MoleculeMLMAlgo:
             from utils.ps_fragsmiles_tokenizer import PSFragSMILESTokenizer
 
             tokenizer = PSFragSMILESTokenizer.from_pretrained(tok_cfg.pretrained)
+        elif tok_type == "external_tsdy":
+            from utils.external_tsdy_tokenizer import ExternalTSDYTokenizer
+
+            tokenizer = ExternalTSDYTokenizer.from_pretrained(tok_cfg.pretrained, local_files_only=True)
         elif tok_type == "tsmiles":
             from utils.tsmiles_tokenizer import TSMILESTokenizer
 
@@ -68,7 +72,7 @@ class MoleculeMLMAlgo:
         else:
             raise ValueError(
                 f"Unknown tokenizer type: '{tok_type}'. "
-                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt', 'fragsmiles', 'ps_fragsmiles', 'tsmiles'."
+                "Supported: 'smirk', 'auto', 'ape', 'pcatt', 'spe', 'smirk_pcatt', 'fragsmiles', 'ps_fragsmiles', 'tsmiles', 'external_tsdy'."
             )
 
         # Ensure pad token exists (needed by DataCollatorForLanguageModeling)
@@ -97,4 +101,11 @@ class MoleculeMLMAlgo:
             num_attention_heads=m.num_attention_heads,
             max_position_embeddings=m.max_position_embeddings,
         )
+        if self.cfg.get("tokenizer", {}).get("type") == "external_tsdy":
+            from utils.external_tsdy_tokenizer import tokenizer_identity
+
+            config.molecular_tokenizer_identity = tokenizer_identity(self.tokenizer)
+            config.pad_token_id = self.tokenizer.pad_token_id
+            config.bos_token_id = self.tokenizer.bos_token_id
+            config.eos_token_id = self.tokenizer.eos_token_id
         return RobertaForMaskedLM(config)
