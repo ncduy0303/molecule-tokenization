@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 import json
 from pathlib import Path
 import re
+import time
 from scripts.evaluate_intrinsic import inputs, write, digest
 from utils.shared_fragmentation import partition_molecule, component_partitions, decorated_fragments
 from utils.external_tsdy import _component, encode
@@ -33,7 +34,9 @@ def main():
     a = p.parse_args()
     if a.output.exists():
         raise ValueError("Output exists; choose a new directory")
+    print("Loading fixed input samples...", flush=True)
     rows, source = inputs(a.limit, a.downstream_limit)
+    print(f"Loaded {len(rows):,} molecules: {dict(Counter(r['group'] for r in rows))}", flush=True)
     # PubChem is the primary descriptive corpus; downstream groups remain separate.
     base = json.loads(Path("outputs/shared_study_2m_v2/base_TSDY/tokenizer/vocab.json").read_text())
     enhanced = json.loads(Path("outputs/enhanced_tsdy_v3_1/tokenizer/vocab.json").read_text())
@@ -41,7 +44,15 @@ def main():
         lambda: defaultdict(lambda: dict(variants=Counter(), counts=Counter(), sites=Counter(), occurrences=0))
     )
     failures = []
-    for row in rows:
+    started = time.monotonic()
+    for index, row in enumerate(rows, 1):
+        if index == 1 or index % 100 == 0:
+            elapsed = time.monotonic() - started
+            print(
+                f"Starting molecule {index:,}/{len(rows):,}; group={row['group']} "
+                f"id={row['id']}; elapsed={elapsed:.0f}s; failures={len(failures)}",
+                flush=True,
+            )
         try:
             records = pairs(row["smiles"])
         except Exception as e:
@@ -53,6 +64,7 @@ def main():
             d["variants"][r["tsdy"]] += 1
             d["counts"][len(r["sites"])] += 1
             d["sites"][",".join(map(str, r["sites"]))] += 1
+    print("Writing vocabulary-sharing results...", flush=True)
     result = {}
     for group, cores in grouped.items():
         result[group] = [
