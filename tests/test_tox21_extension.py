@@ -1,9 +1,27 @@
 import unittest
+import subprocess
+import sys
 from scripts.prepare_tox21_extension import select_rows, audit_row
 from scripts.submit_tox21_extension import plan
 
 
 class Tox21ExtensionTests(unittest.TestCase):
+    def test_login_node_imports_do_not_load_torch(self):
+        code = """
+import sys
+class BlockTorch:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in ('torch', 'transformers'):
+            raise RuntimeError('Training dependency loaded on login node: ' + fullname)
+sys.meta_path.insert(0, BlockTorch())
+from scripts.submit_tox21_extension import plan, scheduler
+from pathlib import Path
+for stage in ('prepare', 'finetune'):
+    for job in plan(stage):
+        scheduler.render_job(job, Path.cwd())
+"""
+        subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
     def test_missing_labels_preserve_source_ids(self):
         rows = [{"SR-p53": str(i % 2)} for i in range(100)]
         rows[7]["SR-p53"] = ""

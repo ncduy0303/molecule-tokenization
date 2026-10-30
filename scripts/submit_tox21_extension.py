@@ -87,16 +87,24 @@ def main():
     if shutil.which("sbatch") is None:
         raise ValueError("Submit on the Slurm login host")
     if a.stage == "finetune":
-        from omegaconf import OmegaConf
-        from scripts.prepare_external_tsdy_training import load_tokenizer
-        from datamodules.molecule_datasets.prepared import load_prepared
+        from utils.cache_utils import file_digest
 
         domains = []
         for kind, path in TOKENIZERS.items():
-            load_prepared(
-                OmegaConf.create(dict(prepared_path=str(DATA / kind), prepared_task="tox21_sr_p53", max_length=512)),
-                load_tokenizer(path, kind),
-            )
+            # Login-node checks use only metadata and hashes. The GPU loader
+            # still validates the actual tokenizer identity and Arrow dataset.
+            root = DATA / kind
+            ready = json.loads((root / "ready.json").read_text())
+            if (
+                not ready.get("passed")
+                or ready.get("smoke")
+                or ready.get("task") != "tox21_sr_p53"
+                or ready.get("max_length") != 512
+            ):
+                raise ValueError(f"Invalid preparation: {root}")
+            for name, checksum in ready["files"].items():
+                if file_digest(root / name) != checksum:
+                    raise ValueError(f"Prepared artifact checksum mismatch: {root / name}")
             manifest = json.loads((DATA / kind / "manifest.json").read_text())
             domains.append(manifest["source"])
             if not (MODELS[kind] / "model.safetensors").is_file():

@@ -14,7 +14,8 @@ from utils.cache_utils import file_digest, value_digest, validate_indices
 from utils.shared_fragmentation import encode_shared
 from utils.external_tsdy import encode, model_tokens, decode_tokens, molecules_equal
 from scripts.prepare_external_tsdy import write_json
-from scripts.prepare_external_tsdy_training import prepare_task, SPLITS
+
+SPLITS = ("train", "validation", "test")
 
 URL = "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz"
 DATA = Path("data/tox21_sr_p53")
@@ -58,6 +59,8 @@ def audit_row(item):
 
 
 def main():
+    from scripts.prepare_external_tsdy_training import prepare_task
+
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--output", type=Path, default=DATA)
     p.add_argument("--workers", type=int, default=8)
