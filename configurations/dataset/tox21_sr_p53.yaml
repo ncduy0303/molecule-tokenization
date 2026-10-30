@@ -1,0 +1,10 @@
+defaults:
+  - base_dataset
+
+name: tox21_sr_p53
+prepared_path: data/tox21_sr_p53/enhanced
+prepared_task: tox21_sr_p53
+max_length: 512
+allow_smoke: false
+seed: 42
+molnet_name: tox21
