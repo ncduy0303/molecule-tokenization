@@ -1,0 +1,9 @@
+#let title = "Advanced Tokenization Methods for Molecular Foundation Models"
+#let author = "Nguyen Cao Duy"
+#let matric = "A0258078R"
+#let project-id = "H437020"
+#let supervisor = "Dr. Bian Yatao"
+#let evaluator = "Dr. Chen Yu"
+#let academic-year = "2026/2027"
+#let submission-year = "2026"
+#let draft = true
