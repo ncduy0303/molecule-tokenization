@@ -1,19 +1,9 @@
-# Principal-subgraph fragmentation
+# Legacy PS-fragSMILES
 
-This directory is the **legacy ring-initialized implementation**. For the new
-shared fragSMILES/TSID/TSDY study, use `utils/shared_fragmentation.py` and
-`utils/shared_ps.py`, configured through `algorithm=train_shared_ps`. The new
-model format preserves the initial non-single bonds and is not compatible with
-old `ps_vocab.txt` artifacts. See [configuration options](../../configurations/README.md).
+This is the ring-initialized principal-subgraph implementation used by the earlier PS-fragSMILES experiments.
 
-This code implements the principal-subgraph path used by PS-fragSMILES. The CA report describes it as an adaptation of PS-VAE-style graph BPE that collapses ring systems before mining, to support fragSMILES assembly.
+- `mol_bpe_ring.py`: initialize ring-based blocks, mine merges and decompose molecules.
+- `molecule.py`: subgraph representation and atom mappings.
+- `ps_encode.py`: convert the decomposition to fragSMILES.
 
-| File                  | Role                                                                                                                                     |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `mol_bpe_ring.py`     | Detect ring systems, initialize molecular subgraphs, mine frequent adjacent merges, save/load the PS vocabulary, and decompose molecules |
-| `molecule.py`         | Molecular subgraph nodes and edges, atom mappings, reconstruction, and SVG inspection                                                    |
-| `ps_encode.py`        | Convert PS decomposition into a `chemicalgof` graph and serialize fragSMILES                                                             |
-| `utils/chem_utils.py` | RDKit helpers and atom valence table                                                                                                     |
-| `utils/logger.py`     | Console logging                                                                                                                          |
-
-`TokenizerTrainingExperiment._train_ps` trains the raw PS vocabulary, converts the corpus, counts serialized tokens, and writes a Hugging Face-compatible tokenizer. `PSFragSMILESTokenizer` retains both the serialized-token vocabulary and the PS vocabulary needed to encode new SMILES.
+For shared fragmentation experiments, use `utils/shared_fragmentation.py` and `utils/shared_ps.py` through `algorithm=train_shared_ps`. Their `ps_merges.json` format is not interchangeable with legacy `ps_vocab.txt` artifacts. See [configuration options](../../configurations/README.md).

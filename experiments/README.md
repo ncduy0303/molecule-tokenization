@@ -1,41 +1,27 @@
-# Molecular experiments
+# Pipeline stages
 
-`main.py` selects an experiment through `exp_registry` in `__init__.py`. Each experiment inherits `BaseExperiment`, which stores the configuration/output directory, builds an algorithm from its registry, and invokes methods listed in `experiment.tasks`.
+`main.py` selects an experiment, builds its algorithm, and runs the methods in `experiment.tasks`.
 
-| Experiment                  | Tasks                    | Inputs                                        | Outputs within the run directory   |
-| --------------------------- | ------------------------ | --------------------------------------------- | ---------------------------------- |
-| `tokenizer_training`        | `training`               | PubChem tokenizer corpus and `train_*` config | `tokenizer/`                       |
-| `tokenizer_benchmark`       | `training`, `evaluation` | PubChem MLM splits and `*_roberta` config     | `final_checkpoint/` after training |
-| `downstream_classification` | `training`, `evaluation` | MoleculeNet data and `*_classifier` config    | `best_model/` after training       |
+| Experiment                  | Purpose                                              | Main training output |
+| --------------------------- | ---------------------------------------------------- | -------------------- |
+| `tokenizer_training`        | Construct a vocabulary/tokenizer                     | `tokenizer/`         |
+| `tokenizer_benchmark`       | MLM pretraining and evaluation                       | `final_checkpoint/`  |
+| `downstream_classification` | Property prediction, selecting by validation ROC-AUC | `best_model/`        |
 
-## Execution flow
-
-- `TokenizerTrainingExperiment` dispatches tokenizer construction by `algorithm.tokenizer.type`. It supports BPE, APE, SPE, SMIRK, SMIRK-GPE, PCATT, SMIRK-PCATT, fragSMILES, t-SMILES, and PS-fragSMILES.
-- `TokenizerBenchmarkExperiment` constructs the model/tokenizer, loads tokenized PubChem splits, and uses dynamic MLM masking through `DataCollatorForLanguageModeling`. Training includes validation and final test evaluation.
-- `DownstreamClassificationExperiment` loads MoleculeNet data, infers the target count, constructs a classification head, and uses ROC-AUC for checkpoint selection and early stopping. It evaluates validation and test splits after training.
-- The two model experiments configure W&B through environment variables and Hugging Face Trainer. Tokenizer construction prints progress and saves files locally.
+Shared PS mining is a tokenizer-training task that produces `ps_merges.json` instead of a tokenizer. Model training uses Hugging Face Trainer; examples are in the [main README](../README.md).
 
 ## Loading and evaluation
 
-- `algorithm.model.pretrained` initializes a model from saved weights.
-- `algorithm.model.finetuned` loads an already fine-tuned classifier, including its classification head.
+- `algorithm.model.pretrained` initializes model weights.
+- `algorithm.model.finetuned` loads a trained classifier, including its head.
+- `'experiment.tasks=[evaluation]'` evaluates saved weights. Keep the tokenizer and dataset settings matched to the model.
 
-Use the complete commands in the [root README](../README.md). Select compatible groups using the [configuration guide](../configurations/README.md).
+## Resuming training
 
-## Resume training
+Use `resume=/absolute/path/to/checkpoint-N` with the original tokenizer, dataset, architecture and training settings. A full checkpoint restores optimizer, scheduler, RNG and Trainer state as well as weights.
 
-Both model experiments pass `resume` to Hugging Face Trainer to restore model weights, optimizer, scheduler, RNG, and Trainer state. Use a local `checkpoint-N` directory containing the full state, with the same tokenizer, data, model architecture, and training settings as the original run.
-
-```bash
-python -m main +name=bpe_mlm_resumed \
-  experiment=tokenizer_benchmark dataset=pubchem10m_mlm_train algorithm=bpe_roberta \
-  algorithm.tokenizer.pretrained=PATH_TO_ORIGINAL_TOKENIZER \
-  resume=/absolute/path/to/checkpoint-N
-```
-
-- Reapply the original dataset/cache overrides as well. The saved `.hydra/config.yaml` is a record, not automatically merged into the new command.
-- `experiment.training.num_train_epochs` is the total target across the original and resumed training, not additional epochs.
-- MLM defaults to `save_strategy=no`. Set `experiment.training.save_strategy=epoch` in the original run to produce resumable checkpoints. Classification already saves epoch checkpoints.
-- `final_checkpoint/` and `best_model/` exports support loading weights but lack optimizer and scheduler state. Use the sibling `checkpoint-N` directories for resume.
-- Only the `training` task supports resume. Tokenizer construction and evaluation reject it. The old root `load` option and W&B run IDs produce explicit errors; use model configuration for weight-only loading.
-- This path supports standard local Trainer checkpoints. DeepSpeed/FSDP-specific distributed checkpoint formats are not supported by the validator.
+- Reapply the original overrides; `.hydra/config.yaml` is not automatically loaded.
+- `num_train_epochs` is the total target, not additional epochs.
+- Enable checkpoint saving in the original run, for example `experiment.training.save_strategy=epoch`. MLM defaults to no intermediate checkpoints.
+- `final_checkpoint/` and `best_model/` are weight exports, not full resume checkpoints.
+- Resume supports model training with standard local Trainer checkpoints, not tokenizer construction, evaluation or W&B run IDs.

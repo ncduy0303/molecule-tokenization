@@ -1,22 +1,12 @@
-# Molecular model construction
+# Model construction
 
-The active algorithms are small wrappers around Hugging Face tokenizers and RoBERTa models. Hugging Face Trainer runs the optimization loop in `experiments/`.
+These wrappers load tokenizers and construct RoBERTa models. Training is handled by [experiments](../experiments/README.md).
 
-| Module                        | Responsibility                                                                                                                           |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `tokenizer_benchmark/algo.py` | `MoleculeMLMAlgo` loads a tokenizer and builds `RobertaForMaskedLM`, either from configuration or pretrained weights.                    |
-| `downstream_finetune/algo.py` | `MoleculeClassificationAlgo` loads a tokenizer, then builds `RobertaForSequenceClassification` once the dataset's target count is known. |
+| Module                        | Purpose                                                  |
+| ----------------------------- | -------------------------------------------------------- |
+| `tokenizer_benchmark/algo.py` | Tokenizer loading and masked language model construction |
+| `downstream_finetune/algo.py` | Tokenizer loading and classification model construction  |
 
-Tokenizer construction itself lives in `experiments/tokenizer_training.py`. Its `TokenizerTrainer` holds configuration and does not construct a neural model.
+Tokenizer implementations live in [utils](../utils/README.md); tokenizer training lives in `experiments/tokenizer_training.py`.
 
-Both model wrappers dispatch on `algorithm.tokenizer.type`: `auto`, `smirk`, `ape`, `pcatt`, `spe`, `smirk_pcatt`, `fragsmiles`, `ps_fragsmiles`, or `tsmiles`. `auto` uses Hugging Face AutoTokenizer, including locally trained BPE tokenizers. Custom tokenizer implementations live in [utils](../utils/README.md).
-
-## Adding a method
-
-- Add its tokenizer loading branch to both wrappers if it needs pretraining and downstream evaluation.
-- Add the relevant YAML files under `configurations/algorithm/`.
-- Register the YAML names in the appropriate experiment's `compatible_algorithms` mapping.
-- For a new tokenizer construction method, also add its training dispatch and implementation to `TokenizerTrainingExperiment`.
-- Check special-token IDs, vocabulary size, saved-tokenizer reload behavior, and consistency between training and evaluation tokenization.
-
-SMIRK loading is shared between MLM and downstream classification through `utils/smirk_utils.py`. `tokenizer.pretrained` accepts a saved tokenizer directory or a `tokenizer.json` file. With no path, it uses the default SMIRK vocabulary. Tokenizer construction writes its intermediate vocabulary inside the run's `tokenizer/` directory.
+To add a method, add its loading logic to the relevant wrappers, create algorithm YAML presets, and register them in the experiment. If it needs vocabulary training, add that training dispatch too. Check saved-tokenizer reloads, vocabulary size and special-token IDs across both model stages.

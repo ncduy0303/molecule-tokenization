@@ -1,26 +1,16 @@
-# Tokenizers, molecular encoders, and infrastructure
+# Tokenizers and molecular encoders
 
-## Molecular code
+This directory contains representation conversion, tokenizer wrappers and shared training helpers.
 
-| Files                                                      | Purpose                                                                                   |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `spe_tokenizer.py`                                         | Hugging Face wrapper for SMILES Pair Encoding, with vocabulary and merge-file persistence |
-| `smirk_pcatt_adapter.py`, `smirk_pcatt_tokenizer.py`       | Map SMIRK glyphs to bytes for PCATT and expose the result as a Hugging Face tokenizer     |
-| `fragsmiles_tokenizer.py`                                  | Split precomputed fragSMILES strings and map fragments to vocabulary IDs                  |
-| `tsmiles_tokenizer.py`                                     | Split precomputed t-SMILES into fragment and structural tokens                            |
-| `ps_fragsmiles_tokenizer.py`                               | Convert SMILES with a learned principal-subgraph vocabulary, then tokenize fragSMILES     |
-| `safe_utils.py`, `fragsmiles_utils.py`, `tsmiles_utils.py` | Representation conversion used by dataset loaders                                         |
-| `ps_fragsmiles_utils.py`                                   | Batch helpers for learned principal-subgraph conversion during tokenizer construction     |
-| [ps/](ps/README.md)                                        | Ring-aware principal-subgraph mining and conversion to fragSMILES                         |
-| `timeout_utils.py`                                         | SIGALRM-based timeout context used by t-SMILES conversion                                 |
+| Files                                                      | Purpose                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| `*_tokenizer.py`                                           | Tokenizer wrappers and saved-vocabulary handling     |
+| `safe_utils.py`, `fragsmiles_utils.py`, `tsmiles_utils.py` | Historical representation conversion                 |
+| `shared_fragmentation.py`, `shared_ps.py`                  | Shared exocyclic partition and learned PS merges     |
+| `external_tsdy.py`, `external_tsdy_tokenizer.py`           | Enhanced TSDY encoding, decoding and tokenization    |
+| [ps/](ps/README.md)                                        | Legacy ring-initialized PS-fragSMILES implementation |
+| `cache_utils.py`                                           | Cache provenance, checksums and corpus exclusion     |
+| `ckpt_utils.py`                                            | Full training-checkpoint validation                  |
+| `smirk_utils.py`                                           | Shared SMIRK vocabulary loading                      |
 
-Representation converters retain a SMILES fallback when conversion fails. Cached corpora may therefore contain fallback strings. t-SMILES timeout protection is a no-op on systems without SIGALRM or outside the main thread.
-
-## Retained infrastructure
-
-- `print_utils.py`: colored progress messages.
-- `distributed_utils.py`: rank-zero detection used by the launcher and base experiment. This still imports Lightning, even though molecular training uses Hugging Face Trainer.
-- `cluster_utils.py`: optional generic Slurm job generation used by `main.py`.
-- `ckpt_utils.py`: validates local full Trainer checkpoints and rejects obsolete loading options.
-- `cache_utils.py`: provenance/checksum validation, index validation, and tokenizer-corpus exclusion.
-- `smirk_utils.py`: shared SMIRK loading for pretraining and downstream use.
+The remaining helpers support logging, distributed execution and Slurm submission. Representation behavior differs by path: historical converters can fall back to SMILES, while shared fragmentation raises conversion errors. See [dataset settings](../datamodules/README.md).

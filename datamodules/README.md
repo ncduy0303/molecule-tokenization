@@ -1,33 +1,28 @@
-# Molecular datasets
+# Dataset preparation
 
-The loaders in `molecule_datasets/` prepare strings and labels for the three project stages.
+The loaders in `molecule_datasets/` sample corpora, convert molecular representations and prepare tokenized datasets.
 
-| Module                          | Input and behavior                                                                                           | Return value                                  |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| `pubchem10m_tokenizer_train.py` | Samples valid PubChem molecules, caches indices and strings, optionally constructs PCATT word counts         | Corpus list and text-file path                |
-| `pubchem10m_mlm_train.py`       | Samples PubChem train/validation/test indices, caches strings, applies the selected tokenizer                | Hugging Face `DatasetDict`                    |
-| `molnet.py`                     | Downloads MoleculeNet CSVs, drops rows with missing selected targets, splits data, caches strings, tokenizes | Hugging Face `DatasetDict` with label vectors |
-
-`molecule_datasets/__init__.py` registers `pubchem10m_mlm_train` for the MLM experiment. Tokenizer construction and downstream classification call their loaders directly.
+| Loader                          | Purpose                                         |
+| ------------------------------- | ----------------------------------------------- |
+| `pubchem10m_tokenizer_train.py` | Tokenizer corpus and vocabulary-training inputs |
+| `pubchem10m_mlm_train.py`       | MLM train, validation and test splits           |
+| `molnet.py`                     | Molecular property datasets and labels          |
 
 ## Representations
 
-- Default input is RDKit-canonicalized SMILES.
-- `dataset.use_safe=true` selects SAFE, with `dataset.safe_slicer` controlling fragmentation.
-- `dataset.use_fragsmiles=true` selects precomputed fragSMILES strings.
-- `dataset.use_tsmiles=true` selects t-SMILES, with `dataset.tsmiles_variant` and `dataset.tsmiles_slicer` controlling encoding.
-- Only one of these representation flags may be enabled.
-- Legacy PS-fragSMILES takes SMILES and performs its own learned decomposition inside its tokenizer. Leave all representation flags false for that method.
-- The shared study uses `dataset.fragmentation=exocyclic` with either `use_fragsmiles=true` or `use_tsmiles=true` (TSID/TSDY/TSIS). It preserves one common partition, bypasses BRICS/MMPA, and raises conversion errors. Optional `dataset.ps_merges_path` adds the same frozen learned merges to every representation.
+- Default: canonical SMILES.
+- SAFE: `dataset.use_safe=true`, with `dataset.safe_slicer`.
+- fragSMILES: `dataset.use_fragsmiles=true`.
+- t-SMILES: `dataset.use_tsmiles=true`, with `dataset.tsmiles_variant` and `dataset.tsmiles_slicer`.
 
-## MoleculeNet coverage
+Enable only one representation flag. Legacy PS-fragSMILES converts SMILES inside its tokenizer, so leave these flags false for that method.
 
-- BBBP uses target `p_np`; HIV uses `HIV_active`. Both use DeepChem scaffold splitting with train/validation/test fractions 0.8/0.1/0.1.
-- The loader also has ClinTox (`CT_TOX`) and Tox21 (`SR-p53`) branches using random splitting. They do not have dedicated YAML presets and are single-target selections, not full multitask benchmarks.
-- Invalid strings can survive canonicalization through fallback behavior. Do not assume every downstream row has been validated or converted successfully.
+For a shared exocyclic partition, set `dataset.fragmentation=exocyclic` with fragSMILES or t-SMILES TSID/TSDY/TSIS. Optional `dataset.ps_merges_path` applies frozen learned merges. This path raises conversion errors; historical conversion paths can fall back to SMILES.
 
-## Reproducibility
+Enhanced TSDY uses separate `external_tsdy_*` dataset presets and prepared inputs.
 
-MLM requires `dataset.tokenizer_indices_path` from a verified tokenizer corpus and excludes those source rows from all splits. It validates the exclusion on cache reuse as well. Use the same source and `hf_revision` in both stages; pin the revision when reproducing experiments.
+## Splits and caches
 
-Generated caches require matching provenance and content checksums. Changed settings or legacy caches raise errors instead of silently reusing data. Keep old research caches intact and choose a fresh `dataset.data_dir` for new settings. See [data storage and migration](../data/README.md).
+- HIV (`HIV_active`) and BBBP (`p_np`) use scaffold splits with train/validation/test fractions of 0.8/0.1/0.1.
+- MLM excludes the tokenizer corpus's source indices. Both PubChem stages must use the same source revision.
+- Changed sampling or representation settings require fresh cache directories. See [cache rules](../data/README.md).
