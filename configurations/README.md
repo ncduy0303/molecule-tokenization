@@ -21,7 +21,7 @@ exocyclic-block PS merge model from raw SMILES. Its output is `ps_merges.json`,
 not a Hugging Face tokenizer. Use the ordinary `train_fragsmiles` or
 `train_tsmiles` presets afterward with `dataset.fragmentation=exocyclic` and
 optional `dataset.ps_merges_path`. Keep those representation settings for MLM
-and classification. See the [shared study runbook](../docs/SHARED_FRAGMENTATION.md).
+and classification. See the representation settings in [dataset loaders](../datamodules/README.md).
 
 ## Common overrides
 

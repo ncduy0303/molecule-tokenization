@@ -18,7 +18,7 @@ The loaders in `molecule_datasets/` prepare strings and labels for the three pro
 - `dataset.use_tsmiles=true` selects t-SMILES, with `dataset.tsmiles_variant` and `dataset.tsmiles_slicer` controlling encoding.
 - Only one of these representation flags may be enabled.
 - Legacy PS-fragSMILES takes SMILES and performs its own learned decomposition inside its tokenizer. Leave all representation flags false for that method.
-- The shared study uses `dataset.fragmentation=exocyclic` with either `use_fragsmiles=true` or `use_tsmiles=true` (TSID/TSDY). It preserves one common partition, bypasses BRICS/MMPA, and raises conversion errors. Optional `dataset.ps_merges_path` adds the same frozen learned merges to every representation. See the [runbook](../docs/SHARED_FRAGMENTATION.md).
+- The shared study uses `dataset.fragmentation=exocyclic` with either `use_fragsmiles=true` or `use_tsmiles=true` (TSID/TSDY/TSIS). It preserves one common partition, bypasses BRICS/MMPA, and raises conversion errors. Optional `dataset.ps_merges_path` adds the same frozen learned merges to every representation.
 
 ## MoleculeNet coverage
 

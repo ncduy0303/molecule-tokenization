@@ -2,108 +2,77 @@
 
 NUS School of Computing Final Year Project by Nguyen Cao Duy, supervised by Dr. Bian Yatao. Project ID: H437020, academic year 2025-2026.
 
-This repository benchmarks how molecular tokenization affects representation learning and molecular property prediction. It also explores fragment representations, including principal-subgraph fragmentation combined with fragSMILES.
+This project studies how molecular tokenization affects masked language modeling and molecular property prediction. It compares SMILES-based tokenizers, fragSMILES and t-SMILES, including shared exocyclic fragmentation, learned principal-subgraph merges, and an enhanced TSDY representation that separates fragment cores from attachment information.
 
-## Project context
-
-- [Continual Assessment report](reports/FYP_CA_Report.pdf): motivation, literature review, methodology, results, and proposed next steps.
-- [Continual Assessment slides](reports/FYP_CA_Slides.pdf): presentation overview.
-
-The implemented pipeline is:
-
-1. Construct a tokenizer from a PubChem10M corpus.
-2. Pretrain a RoBERTa model with masked language modeling (MLM).
-3. Fine-tune and evaluate molecular property classification on MoleculeNet, with BBBP and HIV configuration files.
-
-Supported families include BPE, PCATT, SMIRK and its GPE/PCATT extensions, APE, SPE, fragSMILES, t-SMILES, and PS-fragSMILES. SAFE is a dataset representation option.
-
-For matched-fragmentation experiments, see the [shared exocyclic fragmentation
-runbook](docs/SHARED_FRAGMENTATION.md). It provides fragSMILES, TSID and TSDY
-from the same partition, with optional reusable PS-style merges, cluster commands,
-and reconstruction audits.
+The pipeline is **tokenizer construction -> RoBERTa MLM pretraining -> property classification on HIV or BBBP**. Datasets, trained models and generated results are not included in Git.
 
 ## Setup
 
-Run commands from the repository root. Dependencies and Git sources are declared in [pyproject.toml](pyproject.toml), with resolved versions in [uv.lock](uv.lock).
+Run commands from the repository root:
 
 ```bash
 uv sync --locked
 source .venv/bin/activate
-```
-
-The project declares Python >=3.10. Some dependencies come from Git repositories, so installation requires Git and network access. Dataset loaders download PubChem or MoleculeNet data when their local caches are absent. Model training requires substantially more resources than inspecting configurations or constructing a small tokenizer.
-
-## Inspect a run without training
-
-```bash
 python -m main --cfg job --resolve
 ```
 
-The default configuration selects BPE tokenizer construction. Actual runs require `+name=...`. W&B logging is disabled by default. For model runs with online logging, run `wandb login` and pass `wandb.mode=online wandb.entity=YOUR_ENTITY`.
+The last command displays the default configuration without starting training. Installation requires Git and network access. Dataset loaders download their source data when local caches are absent. Use a GPU for model training.
 
-## Run the pipeline
+## Run a baseline
 
-These BPE examples explicitly connect each stage's artifacts. Replace the illustrative output paths with the directories printed by your runs. Do not use `outputs/latest-run` for an earlier stage's input, because each new run updates that link.
+These BPE examples connect each stage using explicit output paths. Use fresh output and cache directories for a new experiment. The defaults use a 5,000-token vocabulary, 2,000,000 tokenizer-training molecules and 20 MLM epochs.
 
-### Construct a tokenizer
+### 1. Train the tokenizer
 
 ```bash
 python -m main +name=bpe_tokenizer \
   experiment=tokenizer_training dataset=pubchem10m_tokenizer_train \
-  algorithm=train_bpe
+  algorithm=train_bpe \
+  dataset.data_dir=data/bpe_baseline/tokenizer \
+  hydra.run.dir=outputs/bpe_baseline/tokenizer
 ```
 
-The tokenizer is saved under `outputs/<date>/<time>/tokenizer/`. The default corpus contains 2,000,000 molecules and the target vocabulary size is 5,000. A smaller run should use a separate cache directory, for example `dataset.corpus_size=1000 dataset.data_dir=data/smoke_tokenizer`. A first run can still download the full source dataset.
-
-### Pretrain a molecular language model
+### 2. Pretrain the MLM
 
 ```bash
 python -m main +name=bpe_mlm \
   experiment=tokenizer_benchmark dataset=pubchem10m_mlm_train \
   algorithm=bpe_roberta \
-  algorithm.tokenizer.pretrained=outputs/TOKENIZER_DATE/TOKENIZER_TIME/tokenizer
+  dataset.data_dir=data/bpe_baseline/mlm \
+  dataset.tokenizer_indices_path=data/bpe_baseline/tokenizer/subset_indices.json \
+  algorithm.tokenizer.pretrained=outputs/bpe_baseline/tokenizer/tokenizer \
+  hydra.run.dir=outputs/bpe_baseline/mlm
 ```
 
-The final model and tokenizer are saved under `outputs/<date>/<time>/final_checkpoint/`. Defaults specify 1,000,000 training, 100,000 validation, and 100,000 test molecules, with 20 training epochs. The model has 6 layers, 12 attention heads, hidden size 768, intermediate size 1536, and 514 position embeddings. Dataset tokenization truncates at 512 tokens.
-
-### Fine-tune on BBBP or HIV
+### 3. Fine-tune and evaluate
 
 ```bash
 python -m main +name=bpe_bbbp \
   experiment=downstream_classification dataset=molnet_bbbp \
   algorithm=bpe_classifier \
-  algorithm.tokenizer.pretrained=outputs/TOKENIZER_DATE/TOKENIZER_TIME/tokenizer \
-  algorithm.model.pretrained=outputs/MLM_DATE/MLM_TIME/final_checkpoint
+  dataset.data_dir=data/bpe_baseline/bbbp \
+  algorithm.tokenizer.pretrained=outputs/bpe_baseline/tokenizer/tokenizer \
+  algorithm.model.pretrained=outputs/bpe_baseline/mlm/final_checkpoint \
+  hydra.run.dir=outputs/bpe_baseline/bbbp
 ```
 
-Use `dataset=molnet_hiv` for HIV. The experiment evaluates ROC-AUC, selects the best validation checkpoint, and saves it under `best_model/`. The default training limit is 5 epochs with early stopping.
+For HIV, change `dataset=molnet_hiv` and use separate HIV cache/output paths and a run name. Classification selects a checkpoint using validation performance, evaluates test ROC-AUC, and exports `best_model/`.
 
-For evaluation of a saved classifier, use the same tokenizer and dataset settings, set `'experiment.tasks=[evaluation]'`, and add `+algorithm.model.finetuned=outputs/CLASSIFIER_DATE/CLASSIFIER_TIME/best_model`. For MLM evaluation, use `'experiment.tasks=[evaluation]'` with `+algorithm.model.pretrained=outputs/MLM_DATE/MLM_TIME/final_checkpoint` and the matching tokenizer.
+## Reproducibility and logging
 
-## Configuration and reproducibility
+- Pin the same `dataset.hf_revision` in both PubChem stages for reproducible source selection. MLM excludes the tokenizer corpus's source-row indices; this does not deduplicate chemically identical molecules in different rows.
+- Keep representation settings and tokenizer artifacts matched across all stages. Preset artifact paths refer to local research runs; override them with your own paths.
+- Cache provenance is validated. If source or conversion settings change, use a fresh `dataset.data_dir` instead of overwriting old artifacts.
+- W&B is disabled by default. To enable it, run `wandb login` and add `wandb.mode=online wandb.entity=YOUR_ENTITY wandb.project=YOUR_PROJECT` to model-training commands.
+- Resume training with `resume=/absolute/path/to/checkpoint-N`.
 
-- [Configuration guide](configurations/README.md) lists compatible experiment, dataset, and algorithm choices.
-- Existing algorithm presets often point to local `data/pretrained_tokenizers/` and `data/pretrained_models/` artifacts. These artifacts are not included in Git. Override paths for your own runs.
-- Use matching representation settings and tokenizer vocabulary throughout the pipeline. A SAFE-trained tokenizer should receive SAFE data, for example.
-- MLM excludes the source-row indices in `dataset.tokenizer_indices_path`. Prepare the tokenizer corpus first and point this field at its `subset_indices.json` when using a non-default corpus directory. Both stages must use the same source and `dataset.hf_revision`. This guarantees disjoint source rows, not deduplication of chemically identical molecules in different source rows.
-- Cached indices, processed strings, and word counts require matching provenance and checksums. Legacy or incompatible caches fail without being overwritten. Use fresh directories for new experiments; see [data migration notes](data/README.md).
-- Use `resume=/absolute/path/to/checkpoint-N` to restore a full local Hugging Face Trainer checkpoint. `load` and W&B run IDs are rejected. Final `final_checkpoint/` and `best_model/` exports contain model artifacts, not complete resume state. See [resume instructions](experiments/README.md).
+## Where to go next
 
-## Repository map
+- [Configuration reference](configurations/README.md): choose tokenizer families, representations and training settings.
+- [Cluster scripts](scripts/README.md): submit jobs on Slurm after adapting resource requests to your cluster.
+- [Research reports](reports/README.md): project motivation and Continual Assessment report/slides.
 
-| Location                                    | Purpose                                                                        |
-| ------------------------------------------- | ------------------------------------------------------------------------------ |
-| [main.py](main.py)                          | Hydra entry point, output directories, local or Slurm dispatch                 |
-| [experiments/](experiments/README.md)       | Pipeline orchestration and Hugging Face training/evaluation                    |
-| [algorithms/](algorithms/README.md)         | Tokenizer and RoBERTa model construction                                       |
-| [datamodules/](datamodules/README.md)       | Corpus sampling, representation conversion, dataset splits                     |
-| [utils/](utils/README.md)                   | Custom tokenizers, molecular encoders, principal-subgraph code, infrastructure |
-| [configurations/](configurations/README.md) | Hydra settings for each pipeline stage                                         |
-| [scripts/](scripts/README.md)               | Project Slurm wrappers and batch experiment helpers                            |
-| [data/](data/README.md)                     | Local caches and saved artifacts, excluded from Git except documentation       |
-| [reports/](reports/README.md)               | CA report and slides                                                           |
-
-`archive/` is an ignored local research archive. It is not part of the maintained execution path. Existing local data and archived work are preserved.
+For code changes, start at [main.py](main.py). Pipeline stages live in `experiments/`, tokenizer/model construction in `algorithms/`, dataset preparation in `datamodules/`, and molecular encoders and helpers in `utils/`. Each directory has a short README for local details.
 
 ## Template attribution
 
