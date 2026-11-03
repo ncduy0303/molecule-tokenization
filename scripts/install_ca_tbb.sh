@@ -8,4 +8,16 @@ if [[ ! -s "$prefix/lib/libtbb.so.12" ]]; then
 fi
 test -s "$prefix/lib/libtbb.so.12"
 LD_LIBRARY_PATH="$prefix/lib:$PWD/.venv/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-  .venv/bin/python -c 'from pcatt.hf.greedtok import GreedTok; print("PCATT import OK")'
+  .venv/bin/python - <<'PYTHON'
+import ctypes
+import sysconfig
+from pathlib import Path
+
+# Resolve the compiled extension's native dependencies without importing
+# GreedTok, Transformers, or PyTorch on the login node.
+extension = Path(sysconfig.get_path("platlib")) / "pcatt" / (
+    "greedy_encoder" + sysconfig.get_config_var("EXT_SUFFIX")
+)
+ctypes.CDLL(str(extension))
+print("PCATT native extension loads. Run the GPU pilot for the full training check.")
+PYTHON
