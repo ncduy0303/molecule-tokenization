@@ -48,6 +48,11 @@ def main():
         default=15,
         help="GPU wall time, including checkpoint export",
     )
+    p.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Also select recorded trials with a confirmed failed or cancelled Slurm state",
+    )
     a = p.parse_args()
     rows = trials()
     if a.minutes < 1 or a.cap < 1 or any(i not in range(len(rows)) for i in a.retry):
@@ -78,7 +83,7 @@ def main():
             ids = history.get(str(i), [])
             if not ids:
                 todo.append(i)
-            elif i in retry:
+            elif i in retry or a.retry_failed:
                 state = (
                     subprocess.check_output(
                         [
@@ -103,6 +108,8 @@ def main():
                     "PREEMPTED",
                 }:
                     todo.append(i)
+                elif a.retry_failed and i not in retry:
+                    unfinished.append(i)
                 else:
                     raise SystemExit(f"Trial {i}: retry requires confirmed terminal failure; sacct returned {state}")
             else:
