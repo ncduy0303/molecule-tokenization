@@ -129,4 +129,6 @@ class SmirkPCATTTokenizer:
         """Delegate attribute access to the underlying GreedTok tokenizer."""
         # This is only called when normal attribute lookup fails,
         # so self._greedtok etc. are found normally via __init__.
-        return getattr(self._greedtok, name)
+        # Unpickling probes attributes before the instance state is restored.
+        backend = object.__getattribute__(self, "_greedtok")
+        return getattr(backend, name)
