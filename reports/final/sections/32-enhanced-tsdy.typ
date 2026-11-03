@@ -18,7 +18,7 @@ The encoder writes the cores in breadth-first order on a first-child/next-siblin
     [`C c1ccccc1 <N2>` `<NULL> C <N3>`], [`C c1ccccc1 <N2>` `<NULL> C <N5>`],
   ),
   kind: image,
-  caption: [Enhanced-TSDY token streams for two dimethylbenzene isomers. Ring labels give core atom indices. Read each tree level from left to right. The left branch points to the first child and the right branch to the next sibling. The empty sibling slot (∅) emits `<NULL>`.],
+  caption: [Enhanced-TSDY token streams for two dimethylbenzene isomers. Ring labels give core atom indices. Traversal proceeds from left to right at each level. The left branch points to the first child and the right branch to the next sibling. The empty sibling slot ($emptyset$) emits `<NULL>`.],
 ) <enhanced-example>
 
 For each child, the decoder restores a single bond between the parent and child cores and removes a hydrogen cap at each endpoint. If a core has only one hydrogen-bearing atom, the decoder can infer that endpoint. Otherwise, the encoder writes the atom's index in the parsed core after the child word (for example, `<N1>` denotes atom index 1, counting from zero). When both endpoints need indices, the parent's comes first.
@@ -60,12 +60,15 @@ Molecules can have identical atoms and bonds but differ in how their atoms are a
 
 *Double-bond stereochemistry.* The `=` in `C=C` specifies a double bond (bond order two). The slash marks on its neighbouring bonds specify the relative arrangement of the attached groups#footnote[See #link("https://www.rdkit.org/docs/RDKit_Book.html#stereogenic-bonds")[The RDKit Book, “Stereogenic bonds”].]. In `F/C=C/F`, the fluorine atoms lie on opposite sides of the carbon-carbon double bond. In `F/C=C\F`, they lie on the same side, as drawn in the right panel of @enhanced-stereo. Both produce the tree tokens `F C=C <N0> <NULL> F <N1>`. The following record for the same-side form is grouped by field below. Each atom address lists its fragment index first and its atom index second.
 
-#align(center)[#table(
-  columns: (auto, auto, auto, auto, auto, auto),
-  inset: 3pt,
-  [Start], [Carbon 1], [Carbon 2], [Relation], [Fluorine 1], [Fluorine 2],
-  [`<B>`], [`<N1> <N0>`], [`<N1> <N1>`], [`<N2>`], [`<N0> <N0>`], [`<N2> <N0>`],
-)]
+#figure(
+  table(
+    columns: (0.65fr, 1fr, 1fr, 0.85fr, 1fr, 1fr),
+    inset: 3pt,
+    table.header([*Start*], [*Carbon 1*], [*Carbon 2*], [*Relation*], [*Fluorine 1*], [*Fluorine 2*]),
+    [`<B>`], [`<N1> <N0>`], [`<N1> <N1>`], [`<N2>`], [`<N0> <N0>`], [`<N2> <N0>`],
+  ),
+  caption: [Double-bond stereo record for same-side difluoroethene.],
+)
 Both carbons belong to fragment 1, the `C=C` core. The final two addresses identify the neighbours whose relative positions define the configuration. The opposite-side form uses `<N3>` in the relation field.
 
 #figure(
@@ -100,5 +103,5 @@ Both carbons belong to fragment 1, the `C=C` core. The final two addresses ident
     image("../assets/scope-sp2.svg", width: 100%),
   ),
   kind: image,
-  caption: [Examples outside the enhanced-TSDY scope.],
+  caption: [Dative bonding and square-planar stereochemistry outside the enhanced TSDY domain.],
 ) <unsupported-chemistry>

@@ -1,3 +1,4 @@
+#import "../template.typ": metric-row-fill
 = Experimental methodology
 
 == Benchmark comparisons
@@ -18,6 +19,7 @@
 
 #figure(
   table(
+    fill: metric-row-fill,
     columns: (1.3fr, 1fr, 1fr),
     align: (left, center, center),
     inset: 5pt,
@@ -41,6 +43,7 @@ Model inputs allowed 510 content tokens plus two boundary tokens. Longer sequenc
 
 #figure(
   table(
+    fill: metric-row-fill,
     columns: (2.5fr, 1fr, 1fr, 1fr, 1fr),
     align: (left, right, right, right, right),
     inset: 5pt,
@@ -48,7 +51,7 @@ Model inputs allowed 510 content tokens plus two boundary tokens. Longer sequenc
     [HIV], [32,901], [4,113], [4,106], [41,120],
     [BBBP], [1,640], [205], [194], [2,039],
   ),
-  caption: [Downstream split sizes.],
+  caption: [Number of molecules in each downstream data split.],
 ) <method-splits>
 
 *Model selection and scoring.* Each classification run started from the final MLM weights for its representation. The area under the receiver operating characteristic curve (ROC-AUC) measures how often the model ranks a positive example above a negative one, counting ties as half. Validation ROC-AUC was evaluated each epoch, with early stopping after three evaluations without improvement. The checkpoint with the highest validation ROC-AUC supplied the test predictions.

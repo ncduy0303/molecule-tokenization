@@ -7,7 +7,7 @@ Before a model can process a molecular string, a tokenizer divides it into units
 
 #figure(
   image("../../CA/images/SMILES_illustration.png", width: 100%),
-  caption: [SMILES notation and tokenization granularity: (a) examples of structural features expressed by SMILES; (b) atom-wise and glyph-based tokenization of a molecular string. Image source: @wadell2026tokenization.],
+  caption: [SMILES notation and tokenization granularity. Panel (a) shows structural features and panel (b) compares atom-wise and glyph-based tokenization. Source: @wadell2026tokenization.],
 ) <intro-smiles>
 
 This project focuses particularly on fragment-based tokenization, in which a molecule is divided into connected groups of atoms before being represented as a sequence. Two design choices are involved: which bonds are cut to form fragments, and how the fragments and their connections are written in the sequence. Existing approaches include t-SMILES, a family of tree-based molecular representations @wu2024t @wu2024hierarchical, and fragSMILES, a fragment-based molecular representation @mastrolorito2025fragsmiles.

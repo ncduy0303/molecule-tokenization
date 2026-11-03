@@ -17,19 +17,19 @@ Comparing BRICS-based t-SMILES with default fragSMILES changes both the bonds cu
 #figure(
   {
     let stage(body) = block(width: 100%, inset: 7pt, stroke: 0.5pt, radius: 3pt, align(center, body))
-    stage[Input SMILES → molecular graph → shared exocyclic partition]
-    align(center)[↓]
+    stage[Input SMILES $->$ molecular graph $->$ shared exocyclic partition]
+    align(center)[$arrow.b$]
     grid(
       columns: (1fr, 1fr),
       gutter: 12pt,
       stage[*Base path* \ Keep the starting fragments], stage[*PS path* \ Apply frozen graph-merge rules],
     )
-    align(center)[↓]
+    align(center)[$arrow.b$]
     stage[Selected serializer: fragSMILES / TSID / TSDY / TSIS]
-    align(center)[↓]
+    align(center)[$arrow.b$]
     stage[Representation-specific tokens and vocabulary lookup]
-    align(center)[↓]
-    stage[MLM pretraining → property prediction]
+    align(center)[$arrow.b$]
+    stage[MLM pretraining $->$ property prediction]
   },
   caption: [Shared-fragmentation pipeline. The base path retains the original fragments; the principal-subgraph (PS) path merges adjacent fragments before serialization.],
 ) <design-shared-pipeline>

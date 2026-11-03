@@ -31,7 +31,7 @@ SMILES Pair Encoding (SPE) applies a BPE-style procedure to an atom-tokenized SM
 
 #figure(
   image("../../CA/images/SPE_illustration.jpeg", width: 100%),
-  caption: [Atom-level segmentation and SMILES Pair Encoding. Image source: @li2021smiles.],
+  caption: [Atom-level segmentation and SMILES Pair Encoding. Source: @li2021smiles.],
 ) <background-spe>
 
 Preserving atom boundaries does not make string-based merging equivalent to graph-based merging. Branches and ring closures can separate connected atoms in the serialized string. This motivates methods that partition the molecular graph before constructing the sequence, rather than relying only on adjacent sequence units.
@@ -48,7 +48,7 @@ Sequential Attachment-based Fragment Embedding (SAFE) groups molecular notation 
 
 #figure(
   image("../../CA/images/SAFE_illustration.gif", width: 100%),
-  caption: [Illustration of fragment blocks in SAFE. Image source: @noutahi2024gotta.],
+  caption: [Fragment blocks in SAFE. Source: @noutahi2024gotta.],
 ) <background-safe>
 
 In SAFE, the connection symbols occur within the fragment blocks. Consequently, a fragment core can appear in different annotated strings depending on its connections. Subword tokenization can share portions of those strings, while whole-block tokenization treats each distinct block as a separate vocabulary item.
@@ -60,7 +60,7 @@ The later TSIS representation simplifies TSID by reading from the acyclic molecu
 
 #figure(
   image("../../CA/images/tSMILES_illustration.png", width: 85%),
-  caption: [Fragmentation and tree representations used by t-SMILES. Image source: @wu2024hierarchical.],
+  caption: [Fragmentation and tree representations used by t-SMILES. Source: @wu2024hierarchical.],
 ) <background-tsmiles>
 
 Dummy atoms, written as `*`, mark attachment sites within a fragment. TSID and TSIS additionally label these sites with connection identifiers (e.g., `[*1]`, `[*2]`), allowing corresponding sites in different fragments to be paired during reconstruction. TSDY retains the dummy atoms but omits these identifiers, so the explicit pairing information is lost.
@@ -72,7 +72,7 @@ fragSMILES represents fragments together with external connection annotations, p
 
 #figure(
   image("../../CA/images/fragSMILES_illustration.png", width: 100%),
-  caption: [Fragment-based graph construction and connection annotations in fragSMILES. Image source: @mastrolorito2025fragsmiles.],
+  caption: [Fragment-based graph construction and connection annotations in fragSMILES. Source: @mastrolorito2025fragsmiles.],
 ) <background-fragsmiles>
 
 External connection annotations allow fragment content to be represented separately from its position in the assembled molecule. This offers a different balance from embedding dummy atoms and their identifiers inside fragment strings: the fragment core can be reused across attachment patterns, while separate syntax carries the assembly information.
@@ -86,5 +86,5 @@ As illustrated in @background-psm, the original mining procedure starts with ind
 
 #figure(
   image("../assets/PSM.png", width: 100%),
-  caption: [Principal-subgraph mining on a toy molecular dataset: (a) atom-level initialization; (b) merging a frequent adjacent pair; (c) a subsequent merge forming larger fragments. Colours indicate the fragment partition. Reproduced from Kong's explanation of PS-VAE @kong2022psvaeweb.],
+  caption: [Principal-subgraph mining on a toy molecular dataset. Panels (a) to (c) show atom initialization and two successive merges. Colours indicate the fragment partition. Reproduced from Kong's explanation of PS-VAE @kong2022psvaeweb.],
 ) <background-psm>
