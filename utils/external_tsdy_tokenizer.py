@@ -23,9 +23,23 @@ def compatible_codec(source, expected):
 
 
 def tokenizer_identity(tokenizer):
+    from apetokenizer.ape_tokenizer import APETokenizer
+
+    if isinstance(tokenizer, APETokenizer):
+        return dict(
+            tokenizer_class=type(tokenizer).__name__,
+            vocab_sha256=value_digest(tokenizer.vocabulary),
+            specials=tokenizer.special_tokens,
+        )
+    vocab = tokenizer.get_vocab()
+    if any(isinstance(token, bytes) for token in vocab):
+        vocab = sorted(
+            (type(token).__name__, token.hex() if isinstance(token, bytes) else token, idx)
+            for token, idx in vocab.items()
+        )
     return dict(
         tokenizer_class=type(tokenizer).__name__,
-        vocab_sha256=value_digest(tokenizer.get_vocab()),
+        vocab_sha256=value_digest(vocab),
         specials={k: str(v) for k, v in tokenizer.special_tokens_map.items()},
         token_format=tokenizer.init_kwargs.get("token_format"),
         representation=tokenizer.init_kwargs.get("molecular_representation"),
