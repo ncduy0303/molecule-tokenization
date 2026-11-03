@@ -3,16 +3,13 @@ from omegaconf import DictConfig
 import pathlib
 
 from .exp_base import BaseExperiment
-from .tokenizer_benchmark import TokenizerBenchmarkExperiment
-from .tokenizer_training import TokenizerTrainingExperiment
-from .downstream_classification import DownstreamClassificationExperiment
+from importlib import import_module
 
-# each key has to be a yaml file under '[project_root]/configurations/experiment' without .yaml suffix
-exp_registry = dict(
-    tokenizer_benchmark=TokenizerBenchmarkExperiment,
-    tokenizer_training=TokenizerTrainingExperiment,
-    downstream_classification=DownstreamClassificationExperiment,
-)
+exp_registry = {
+    "tokenizer_benchmark": "TokenizerBenchmarkExperiment",
+    "tokenizer_training": "TokenizerTrainingExperiment",
+    "downstream_classification": "DownstreamClassificationExperiment",
+}
 
 
 def build_experiment(
@@ -31,4 +28,6 @@ def build_experiment(
             "Make sure you register it correctly in 'experiments/__init__.py' under the same name as yaml file."
         )
 
-    return exp_registry[cfg.experiment._name](cfg, output_dir, ckpt_path)
+    name = cfg.experiment._name
+    experiment = getattr(import_module(f".{name}", __name__), exp_registry[name])
+    return experiment(cfg, output_dir, ckpt_path)

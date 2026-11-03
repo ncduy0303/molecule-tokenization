@@ -21,7 +21,6 @@ from omegaconf import DictConfig
 
 from experiments.exp_base import BaseExperiment
 from algorithms.downstream_finetune import MoleculeClassificationAlgo
-from datamodules.molecule_datasets.molnet import load_molnet
 
 from utils.print_utils import cyan
 
@@ -116,11 +115,14 @@ class DownstreamClassificationExperiment(BaseExperiment):
         if self.root_cfg.dataset.get("prepared_path"):
             from datamodules.molecule_datasets.prepared import load_prepared
 
+            print("Loading prepared dataset", flush=True)
             dataset = load_prepared(self.root_cfg.dataset, tokenizer)
             from datamodules.molecule_datasets.prepared import record_prepared_input
 
             record_prepared_input(self.root_cfg.dataset, self.output_dir)
         else:
+            from datamodules.molecule_datasets.molnet import load_molnet
+
             dataset = load_molnet(self.root_cfg.dataset, tokenizer)
 
         # Infer num_labels from data
@@ -211,6 +213,7 @@ class DownstreamClassificationExperiment(BaseExperiment):
             ],
         )
 
+        print("Entering Trainer.train", flush=True)
         trainer.train(resume_from_checkpoint=str(self.ckpt_path) if self.ckpt_path else None)
 
         # ── Final validation ────────────────────────────────────────────
@@ -248,6 +251,8 @@ class DownstreamClassificationExperiment(BaseExperiment):
 
             record_prepared_input(self.root_cfg.dataset, self.output_dir)
         else:
+            from datamodules.molecule_datasets.molnet import load_molnet
+
             dataset = load_molnet(self.root_cfg.dataset, tokenizer)
 
         num_labels = len(dataset["train"][0]["labels"])

@@ -1,4 +1,8 @@
-from .pubchem10m_mlm_train import load_pubchem10m_mlm_train
+def load_pubchem10m_mlm_train(cfg, tokenizer):
+    from .pubchem10m_mlm_train import load_pubchem10m_mlm_train as load
+
+    return load(cfg, tokenizer)
+
 
 from .prepared import load_prepared
 

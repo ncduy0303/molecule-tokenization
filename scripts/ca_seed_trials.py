@@ -6,9 +6,10 @@ import math
 import os
 from pathlib import Path
 import shutil
-import subprocess
+import runpy
 import sys
 import tempfile
+from datetime import datetime
 
 ROOT = Path("outputs/ca_seed_trials")
 DATA = Path("data/ca_seed_trials")
@@ -145,26 +146,29 @@ def run(index):
         WANDB_TAGS=f"ca_seed_trials,{key.split('-')[0]},{task},seed{seed}",
         WANDB_LOG_MODEL="false",
     )
-    subprocess.run(
-        [
-            sys.executable,
-            "-u",
-            "-m",
-            "main",
-            f"+name={name}",
-            *args,
-            f"+dataset.prepared_path={dest}",
-            f"+dataset.prepared_task={task}",
-            f"experiment.training.seed={seed}",
-            f"experiment.training.data_seed={seed}",
-            "wandb.mode=online",
-            "wandb.entity=ncduy0303",
-            "wandb.project=molecule-tokenization",
-            f"hydra.run.dir={output}",
-        ],
-        check=True,
-        env=env,
-    )
+    sys.argv = [
+        "main",
+        f"+name={name}",
+        *args,
+        f"+dataset.prepared_path={dest}",
+        f"+dataset.prepared_task={task}",
+        f"experiment.training.seed={seed}",
+        f"experiment.training.data_seed={seed}",
+        "wandb.mode=online",
+        "wandb.entity=ncduy0303",
+        "wandb.project=molecule-tokenization",
+        f"hydra.run.dir={output}",
+    ]
+    os.environ.update(env)
+    print(datetime.now().isoformat(timespec="seconds"), "Starting Hydra", flush=True)
+    runpy.run_module("main", run_name="__main__", alter_sys=True)
+    record_completion(index, output)
+
+
+def record_completion(index, output):
+    (key, task, _, _, _), seed = trials()[index]
+    name = f"CA-V2-{key}-{task}-SEED{seed}"
+    root = output.parents[1]
     metric = json.loads((output / "test_results.json").read_text())["test_roc_auc"]
     if not math.isfinite(metric) or not 0 <= metric <= 1:
         raise ValueError(metric)
@@ -182,19 +186,58 @@ def run(index):
         )
     )
     receipt.replace(root / "complete.json")
+    print(
+        datetime.now().isoformat(timespec="seconds"),
+        "Local results complete:",
+        root,
+        flush=True,
+    )
+
+
+def recover(index):
+    """Recover only after full local export, confirmed in the matching Slurm log."""
+    import re
+
+    (key, task, _, _, _), seed = trials()[index]
+    root = ROOT / "trials" / f"{key}_{task}" / f"seed{seed}"
+    if (root / "complete.json").exists():
+        print("Completion already recorded")
+        return
+    matches = []
+    for log in Path("slurm_logs").glob(f"ca_trial_*_{index}.out"):
+        text = re.sub(r"\x1b\[[0-9;]*m", "", log.read_text(errors="replace"))
+        for path in re.findall(r"^Saved best model to: (.+)$", text, re.M):
+            output = Path(path.strip()).parent
+            if output.parents[1].resolve() != root.resolve():
+                continue
+            if all(
+                (output / f).is_file()
+                for f in (
+                    "test_results.json",
+                    "validation_results.json",
+                    "prepared_input.json",
+                    "best_model/model.safetensors",
+                    "best_model/config.json",
+                )
+            ):
+                matches.append(output)
+    if len(matches) != 1:
+        raise SystemExit(f"Expected one verified export, found {len(matches)}. No receipt created.")
+    record_completion(index, matches[0])
+    print("Recovered", matches[0])
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["plan", "prepare", "run"])
+    parser.add_argument("action", choices=["plan", "prepare", "run", "recover"])
     parser.add_argument("index", type=int, nargs="?")
     opt = parser.parse_args()
     if opt.action == "prepare":
         prepare()
-    elif opt.action == "run":
+    elif opt.action in ("run", "recover"):
         if opt.index not in range(len(trials())):
             parser.error("Invalid trial index")
-        run(opt.index)
+        (run if opt.action == "run" else recover)(opt.index)
     else:
         for i, ((key, task, _, model, tok), seed) in enumerate(trials()):
             if not tok.exists() or not (model / "model.safetensors").is_file():
