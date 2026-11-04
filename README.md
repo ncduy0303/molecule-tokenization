@@ -2,7 +2,7 @@
 
 Nguyen Cao Duy · NUS School of Computing · B.Comp. Final Year Project H437020 · Academic Year 2026/2027 · Supervisor: Dr. Bian Yatao
 
-This project compares ways to turn molecules into token sequences for property prediction. It tests how the choice of fragment boundaries affects prediction on HIV and BBBP, and whether different attachment patterns can share a vocabulary entry for the same chemical fragment. The [final report](reports/final/) describes the methods and experiments.
+This project compares ways to turn molecules into token sequences for property prediction. It tests how the choice of fragment boundaries affects prediction on HIV and BBBP, and whether different attachment patterns can share a vocabulary entry for the same chemical fragment. The [final report](reports/final/FYP_Final_Report.pdf) describes the methods and experiments.
 
 ## Setup
 
@@ -57,10 +57,10 @@ Read `$RUN/bbbp/test_results.json` for test ROC-AUC. The classifier selected by 
 
 | Report comparison                            | What to run                                                                                                                                                                                                                                                                                |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Initial benchmark (§5.1, Appendix D)         | The baseline above uses BPE on SMILES. The [algorithm presets](configurations/algorithm/) also cover SMIRK, PCATT, SPE, APE, fragSMILES, and t-SMILES. [Dataset settings](datamodules/README.md) control conversion to SAFE or fragment strings.                                           |
+| Initial benchmark (§5.1, Appendix C)         | The baseline above uses BPE on SMILES. The [algorithm presets](configurations/algorithm/) also cover SMIRK, PCATT, SPE, APE, fragSMILES, and t-SMILES. [Dataset settings](datamodules/README.md) control conversion to SAFE or fragment strings.                                           |
 | Shared fragmentation and PS merging (§5.2)   | Use an exocyclic partition with fragSMILES, TSID, TSDY, or TSIS. For the PS variant, fit one rule file on the tokenizer corpus and pass it to each later stage. [Mining, tokenizer fitting, MLM, and finetuning commands](scripts/SINGLE_RUNS.md#shared-ps-mining-and-fragment-vocabulary) |
 | Enhanced TSDY (§5.3)                         | Fit a vocabulary of clean fragment cores and attachment tokens, then prepare MLM or binary classification splits. [Local-file workflow](scripts/SINGLE_RUNS.md#enhanced-tsdy-from-local-files)                                                                                             |
-| Intrinsic evaluation (§§5.4–5.5, Appendix C) | Supply a saved tokenizer, its representation settings, and a SMILES file to measure token length, unknown-token frequency, and reconstruction. [Evaluation command and output files](scripts/SINGLE_RUNS.md#intrinsic-evaluation)                                                          |
+| Intrinsic evaluation (§5.4, Appendix D) | Supply a saved tokenizer, its representation settings, and a SMILES file to measure token length, fertility, and unknown-token frequency. [Evaluation command and output files](scripts/SINGLE_RUNS.md#intrinsic-evaluation)                                                          |
 
 ## Configure a run
 

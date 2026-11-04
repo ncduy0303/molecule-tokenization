@@ -1,4 +1,3 @@
-#import "../template.typ": review-note
 = System design and implementation
 
 == Benchmark framework and design objectives
@@ -41,8 +40,8 @@ RDKit parses molecules and constructs fragments @rdkitsoftware. NetworkX identif
 
 == Reproducibility and implementation checks
 
-*Corpus separation.* Across all configurations, the tokenizer-training rows had zero overlap with the MLM training, validation, and test rows. This check used PubChem row IDs. Distinct rows can still represent the same molecule. This separation prevents the tokenizer from learning its vocabulary from the exact records used for MLM training or evaluation.
+*Corpus separation.* Across the eight shared-fragmentation configurations, the tokenizer-training rows had zero overlap with the MLM training, validation, and test rows. This check used PubChem row IDs. Distinct rows can still represent the same molecule. This separation prevents the tokenizer from learning its vocabulary from the exact records used for MLM training or evaluation.
 
 *Finetuning trials.* Each trial used a different finetuning seed with the same tokenizer, pretrained model, and dataset split. Three trials were run for each configuration, and the results were averaged. Averaging reduces the influence of any single finetuning run on the comparison.
 
-*Representation checks.* The reconstruction audit checked whether decoding recovered the input molecule, including its specified stereochemistry. The intrinsic vocabulary evaluation measured sequence length and unknown-token frequency after applying the trained vocabulary. Together, these checks show which chemical information survives encoding and how compactly the vocabulary represents it.
+*Vocabulary coverage.* The intrinsic evaluation measures sequence length and unknown-token rates. Matching fragments by their atoms allows base and enhanced TSDY to be compared on the same fragment occurrences.

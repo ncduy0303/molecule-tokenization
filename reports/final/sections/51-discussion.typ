@@ -1,0 +1,3 @@
+== Discussion
+
+The initial benchmark showed a consistent benefit from MMPA over BRICS, while the ranking of assembly notations depended on the task. At a vocabulary size of 5,000, merging neighbouring fragments saved sequence positions but made the resulting fragment words harder to cover. Every PS variant had a lower mean BBBP score than its base counterpart, and the HIV results were mixed. Separating attachment information gave a different outcome. Enhanced TSDY reused core words across attachment patterns and had a higher mean ROC-AUC than base TSDY on both tasks, including BBBP, where the sequences became longer. These results favour core sharing for the TSDY comparison and show why token fertility alone is insufficient for selecting a molecular tokenizer.

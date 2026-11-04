@@ -1,6 +1,10 @@
-# Continual Assessment materials
+# Project reports
 
-- [FYP_CA_Report.pdf](CA/FYP_CA_Report.pdf): the CA report for _Advanced Tokenization Methods for Molecular Foundation Models_, covering motivation, related work, methodology, results, and next-semester plans.
-- [FYP_CA_Slides.pdf](CA/FYP_CA_Slides.pdf): slides accompanying that assessment.
+- [Final dissertation](final/FYP_Final_Report.pdf) and [Typst source](final/main.typ).
+- [Continual Assessment report](CA/FYP_CA_Report.pdf) and [slides](CA/FYP_CA_Slides.pdf).
 
-The report's future-work section includes scaling principal-subgraph mining, PS-t-SMILES, standardized fragmentation comparisons, revised connection notation, and broader evaluation. Those items are research plans rather than a feature list.
+To rebuild the dissertation, install Typst and Times New Roman, then run this command from the repository root:
+
+```bash
+typst compile --root . reports/final/main.typ reports/final/FYP_Final_Report.pdf
+```

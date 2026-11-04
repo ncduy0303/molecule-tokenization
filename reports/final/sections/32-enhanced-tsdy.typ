@@ -1,7 +1,7 @@
 == Enhanced TSDY
 
 === Core words and attachment sites
-In standard TSDY, dummy atoms mark attachment sites inside each fragment string. A benzene ring with one substituent and a benzene ring with two substituents therefore occupy different entries in a whole-fragment vocabulary. Enhanced TSDY uses the same exocyclic partition without PS merging. It caps the cut sites with hydrogen and writes each fragment as a canonical SMILES core. Both rings then use the word `c1ccccc1` for the benzene ring. Separate tokens will identify the attachment sites. This separation follows the clean-fragment approach of fragSMILES @mastrolorito2025fragsmiles and retains TSDY's tree traversal @wu2024t.
+In standard TSDY, dummy atoms mark attachment sites inside each fragment string. A benzene ring with one substituent and a benzene ring with two substituents therefore occupy different entries in a whole-fragment vocabulary. Enhanced TSDY uses the same exocyclic partition without PS merging. It caps the cut sites with hydrogen and writes each fragment as a canonical SMILES core. Both forms then use the ring word `c1ccccc1`. Separate tokens identify the attachment sites. This separation follows the clean-fragment approach of fragSMILES @mastrolorito2025fragsmiles and retains TSDY's tree traversal @wu2024t.
 
 === Token stream and decoding
 The encoder writes the cores in breadth-first order on a first-child/next-sibling binary tree. Each core string is one token. The decoder reads the tree to identify each fragment's parent. An internal empty slot requires a `<NULL>` token, while trailing empty slots can be omitted. A `<DOT>` starts a new disconnected component.

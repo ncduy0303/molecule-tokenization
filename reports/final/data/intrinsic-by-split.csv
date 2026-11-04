@@ -1,0 +1,232 @@
+split,family,name,attempted,encoded,length,fertility,unk,molunk
+pubchem,string,SAFE APE,"10,000","9,717",24.28,0.95,19.56,100.00
+pubchem,string,SAFE BPE,"10,000","9,717",11.18,0.44,0.00,0.00
+pubchem,string,SAFE SBPE,"10,000","9,717",40.77,1.60,0.00,0.00
+pubchem,string,SAFE SMIRK,"10,000","9,717",56.29,2.21,0.00,0.01
+pubchem,string,SAFE SMIRK GPE,"10,000","9,717",11.13,0.44,0.00,0.00
+pubchem,string,SAFE SMIRK SGPE,"10,000","9,717",40.77,1.60,0.00,0.00
+pubchem,string,SAFE SMIRK SPCATT,"10,000","9,717",40.77,1.60,0.00,0.00
+pubchem,string,SAFE SPCATT,"10,000","9,717",40.77,1.60,0.00,0.00
+pubchem,string,SAFE SPE,"10,000","9,717",10.69,0.42,0.00,0.00
+pubchem,string,SMILES APE,"10,000","10,000",8.95,0.36,0.87,6.71
+pubchem,string,SMILES BPE,"10,000","10,000",7.18,0.29,0.00,0.00
+pubchem,string,SMILES SBPE,"10,000","10,000",28.27,1.12,0.00,0.00
+pubchem,string,SMILES SMIRK,"10,000","10,000",44.23,1.76,0.00,0.01
+pubchem,string,SMILES SMIRK SPCATT,"10,000","10,000",39.81,1.58,0.00,0.00
+pubchem,string,SMILES SPCATT,"10,000","10,000",28.27,1.12,0.00,0.00
+pubchem,string,SMILES SPE,"10,000","10,000",7.12,0.28,0.00,0.00
+pubchem,fragment,TSDY BRICS,"10,000","10,000",9.01,0.36,10.19,79.67
+pubchem,fragment,TSDY MMPA,"10,000","10,000",21.08,0.84,1.57,30.54
+pubchem,fragment,TSID BRICS,"10,000","10,000",9.01,0.36,14.02,92.38
+pubchem,fragment,TSID MMPA,"10,000","10,000",21.08,0.84,4.57,68.67
+pubchem,fragment,TSIS BRICS,"10,000","10,000",5.83,0.23,21.66,92.38
+pubchem,fragment,TSIS MMPA,"10,000","10,000",16.72,0.66,5.76,68.66
+pubchem,fragment,TSSA BRICS,"10,000","10,000",13.57,0.54,5.97,72.75
+pubchem,fragment,TSSA MMPA,"10,000","10,000",28.58,1.13,0.50,13.94
+pubchem,fragment,Enhanced TSDY,"10,000","10,000",24.99,0.99,0.20,4.93
+pubchem,fragment,Base TSDY,"10,000","10,000",25.62,1.02,0.72,17.61
+pubchem,fragment,Base TSID,"10,000","10,000",25.62,1.02,3.11,59.00
+pubchem,fragment,Base TSIS,"10,000","10,000",20.77,0.82,3.83,59.00
+pubchem,fragment,Base fragSMILES,"10,000","10,000",19.88,0.79,0.25,4.92
+pubchem,fragment,PS-TSDY,"10,000","10,000",11.51,0.46,4.97,48.38
+pubchem,fragment,PS-TSID,"10,000","10,000",11.51,0.46,11.43,79.48
+pubchem,fragment,PS-TSIS,"10,000","10,000",8.06,0.32,16.32,79.48
+pubchem,fragment,PS-fragSMILES,"10,000","10,000",11.65,0.46,0.48,5.54
+hiv_train,string,SAFE APE,"32,901","27,906",23.00,0.87,17.98,100.00
+hiv_train,string,SAFE BPE,"32,901","27,906",12.58,0.47,0.00,0.00
+hiv_train,string,SAFE SBPE,"32,901","27,906",40.97,1.55,0.00,0.00
+hiv_train,string,SAFE SMIRK,"32,901","27,906",56.40,2.13,0.00,0.00
+hiv_train,string,SAFE SMIRK GPE,"32,901","27,906",12.52,0.47,0.00,0.00
+hiv_train,string,SAFE SMIRK SGPE,"32,901","27,906",40.97,1.55,0.00,0.00
+hiv_train,string,SAFE SMIRK SPCATT,"32,901","27,906",40.99,1.55,0.00,0.00
+hiv_train,string,SAFE SPCATT,"32,901","27,906",41.00,1.55,0.00,0.00
+hiv_train,string,SAFE SPE,"32,901","27,906",12.08,0.46,0.24,2.67
+hiv_train,string,SMILES APE,"32,901","32,901",10.08,0.40,3.41,15.65
+hiv_train,string,SMILES BPE,"32,901","32,901",8.33,0.33,0.00,0.00
+hiv_train,string,SMILES SBPE,"32,901","32,901",29.21,1.16,0.00,0.00
+hiv_train,string,SMILES SMIRK,"32,901","32,901",44.56,1.76,0.00,0.00
+hiv_train,string,SMILES SMIRK SPCATT,"32,901","32,901",40.10,1.59,0.00,0.00
+hiv_train,string,SMILES SPCATT,"32,901","32,901",29.24,1.16,0.00,0.00
+hiv_train,string,SMILES SPE,"32,901","32,901",8.08,0.32,1.41,8.30
+hiv_train,fragment,TSDY BRICS,"32,901","32,896",8.24,0.33,14.63,95.04
+hiv_train,fragment,TSDY MMPA,"32,901","32,896",18.19,0.72,4.98,72.72
+hiv_train,fragment,TSID BRICS,"32,901","32,896",8.24,0.33,17.94,98.46
+hiv_train,fragment,TSID MMPA,"32,901","32,896",18.19,0.72,8.06,92.63
+hiv_train,fragment,TSIS BRICS,"32,901","32,896",4.62,0.18,29.97,98.46
+hiv_train,fragment,TSIS MMPA,"32,901","32,896",13.66,0.54,10.37,92.63
+hiv_train,fragment,TSSA BRICS,"32,901","32,896",11.56,0.46,9.55,90.73
+hiv_train,fragment,TSSA MMPA,"32,901","32,896",24.69,0.98,2.64,53.39
+hiv_train,fragment,Enhanced TSDY,"32,901","32,900",23.10,0.91,1.21,26.09
+hiv_train,fragment,Base TSDY,"32,901","32,901",24.15,0.96,2.70,51.79
+hiv_train,fragment,Base TSID,"32,901","32,901",24.15,0.96,5.00,80.33
+hiv_train,fragment,Base TSIS,"32,901","32,901",19.10,0.76,6.32,80.33
+hiv_train,fragment,Base fragSMILES,"32,901","32,901",19.01,0.75,1.89,30.07
+hiv_train,fragment,PS-TSDY,"32,901","32,901",12.44,0.49,8.28,73.86
+hiv_train,fragment,PS-TSID,"32,901","32,901",12.44,0.49,14.59,91.88
+hiv_train,fragment,PS-TSIS,"32,901","32,901",8.73,0.35,20.78,91.88
+hiv_train,fragment,PS-fragSMILES,"32,901","32,901",12.98,0.51,2.89,31.47
+hiv_validation,string,SAFE APE,"4,113","3,197",24.76,0.85,17.05,100.00
+hiv_validation,string,SAFE BPE,"4,113","3,197",14.35,0.49,0.00,0.00
+hiv_validation,string,SAFE SBPE,"4,113","3,197",43.51,1.49,0.00,0.00
+hiv_validation,string,SAFE SMIRK,"4,113","3,197",62.07,2.12,0.00,0.06
+hiv_validation,string,SAFE SMIRK GPE,"4,113","3,197",14.28,0.49,0.00,0.00
+hiv_validation,string,SAFE SMIRK SGPE,"4,113","3,197",43.51,1.49,0.00,0.00
+hiv_validation,string,SAFE SMIRK SPCATT,"4,113","3,197",43.56,1.49,0.00,0.00
+hiv_validation,string,SAFE SPCATT,"4,113","3,197",43.58,1.49,0.00,0.00
+hiv_validation,string,SAFE SPE,"4,113","3,197",13.62,0.47,0.42,5.32
+hiv_validation,string,SMILES APE,"4,113","4,113",12.36,0.45,5.60,17.75
+hiv_validation,string,SMILES BPE,"4,113","4,113",10.72,0.39,0.00,0.00
+hiv_validation,string,SMILES SBPE,"4,113","4,113",32.38,1.17,0.00,0.00
+hiv_validation,string,SMILES SMIRK,"4,113","4,113",50.35,1.81,0.00,0.05
+hiv_validation,string,SMILES SMIRK SPCATT,"4,113","4,113",45.08,1.62,0.00,0.00
+hiv_validation,string,SMILES SPCATT,"4,113","4,113",32.44,1.17,0.00,0.00
+hiv_validation,string,SMILES SPE,"4,113","4,113",9.96,0.36,1.79,12.25
+hiv_validation,fragment,TSDY BRICS,"4,113","4,110",8.34,0.30,16.72,97.79
+hiv_validation,fragment,TSDY MMPA,"4,113","4,110",16.97,0.61,7.43,87.47
+hiv_validation,fragment,TSID BRICS,"4,113","4,110",8.34,0.30,19.56,99.17
+hiv_validation,fragment,TSID MMPA,"4,113","4,110",16.97,0.61,10.24,97.69
+hiv_validation,fragment,TSIS BRICS,"4,113","4,110",4.13,0.15,33.55,99.17
+hiv_validation,fragment,TSIS MMPA,"4,113","4,110",11.92,0.43,13.36,97.71
+hiv_validation,fragment,TSSA BRICS,"4,113","4,110",11.22,0.40,11.77,95.79
+hiv_validation,fragment,TSSA MMPA,"4,113","4,110",23.00,0.83,4.69,74.06
+hiv_validation,fragment,Enhanced TSDY,"4,113","4,113",21.03,0.76,2.99,53.93
+hiv_validation,fragment,Base TSDY,"4,113","4,113",21.49,0.77,4.62,74.35
+hiv_validation,fragment,Base TSID,"4,113","4,113",21.49,0.77,7.01,93.00
+hiv_validation,fragment,Base TSIS,"4,113","4,113",16.65,0.60,9.05,93.00
+hiv_validation,fragment,Base fragSMILES,"4,113","4,113",17.77,0.64,4.01,56.36
+hiv_validation,fragment,PS-TSDY,"4,113","4,113",12.79,0.46,10.03,86.68
+hiv_validation,fragment,PS-TSID,"4,113","4,113",12.79,0.46,15.40,96.94
+hiv_validation,fragment,PS-TSIS,"4,113","4,113",9.01,0.32,21.85,96.94
+hiv_validation,fragment,PS-fragSMILES,"4,113","4,113",13.58,0.49,5.38,57.79
+hiv_test,string,SAFE APE,"4,106","2,901",22.58,0.81,16.19,100.00
+hiv_test,string,SAFE BPE,"4,106","2,901",13.23,0.47,0.00,0.00
+hiv_test,string,SAFE SBPE,"4,106","2,901",41.08,1.47,0.00,0.00
+hiv_test,string,SAFE SMIRK,"4,106","2,901",57.41,2.05,0.00,0.00
+hiv_test,string,SAFE SMIRK GPE,"4,106","2,901",13.14,0.47,0.00,0.00
+hiv_test,string,SAFE SMIRK SGPE,"4,106","2,901",41.08,1.47,0.00,0.00
+hiv_test,string,SAFE SMIRK SPCATT,"4,106","2,901",41.09,1.47,0.00,0.00
+hiv_test,string,SAFE SPCATT,"4,106","2,901",41.09,1.47,0.00,0.00
+hiv_test,string,SAFE SPE,"4,106","2,901",12.70,0.45,0.08,1.00
+hiv_test,string,SMILES APE,"4,106","4,106",10.65,0.42,2.77,10.20
+hiv_test,string,SMILES BPE,"4,106","4,106",9.28,0.37,0.00,0.00
+hiv_test,string,SMILES SBPE,"4,106","4,106",29.04,1.15,0.00,0.00
+hiv_test,string,SMILES SMIRK,"4,106","4,106",44.44,1.76,0.00,0.00
+hiv_test,string,SMILES SMIRK SPCATT,"4,106","4,106",39.84,1.58,0.00,0.00
+hiv_test,string,SMILES SPCATT,"4,106","4,106",29.06,1.15,0.00,0.00
+hiv_test,string,SMILES SPE,"4,106","4,106",8.97,0.36,0.79,6.41
+hiv_test,fragment,TSDY BRICS,"4,106","4,106",7.16,0.28,16.77,96.57
+hiv_test,fragment,TSDY MMPA,"4,106","4,106",14.60,0.58,7.42,88.72
+hiv_test,fragment,TSID BRICS,"4,106","4,106",7.16,0.28,19.74,99.00
+hiv_test,fragment,TSID MMPA,"4,106","4,106",14.60,0.58,10.18,97.91
+hiv_test,fragment,TSIS BRICS,"4,106","4,106",3.63,0.14,36.49,99.00
+hiv_test,fragment,TSIS MMPA,"4,106","4,106",10.41,0.41,13.86,97.91
+hiv_test,fragment,TSSA BRICS,"4,106","4,106",9.65,0.38,11.71,94.25
+hiv_test,fragment,TSSA MMPA,"4,106","4,106",19.34,0.77,4.68,76.38
+hiv_test,fragment,Enhanced TSDY,"4,106","4,106",18.13,0.72,2.84,50.00
+hiv_test,fragment,Base TSDY,"4,106","4,106",18.66,0.74,4.57,74.40
+hiv_test,fragment,Base TSID,"4,106","4,106",18.66,0.74,6.81,92.26
+hiv_test,fragment,Base TSIS,"4,106","4,106",14.22,0.56,8.94,92.26
+hiv_test,fragment,Base fragSMILES,"4,106","4,106",15.57,0.62,3.60,52.73
+hiv_test,fragment,PS-TSDY,"4,106","4,106",11.80,0.47,9.53,86.53
+hiv_test,fragment,PS-TSID,"4,106","4,106",11.80,0.47,14.55,96.25
+hiv_test,fragment,PS-TSIS,"4,106","4,106",8.24,0.33,20.85,96.25
+hiv_test,fragment,PS-fragSMILES,"4,106","4,106",12.25,0.48,4.71,54.04
+bbbp_train,string,SAFE APE,"1,640","1,428",19.50,0.82,18.63,100.00
+bbbp_train,string,SAFE BPE,"1,640","1,428",10.97,0.46,0.00,0.00
+bbbp_train,string,SAFE SBPE,"1,640","1,428",36.51,1.53,0.00,0.00
+bbbp_train,string,SAFE SMIRK,"1,640","1,428",47.88,2.01,0.00,0.00
+bbbp_train,string,SAFE SMIRK GPE,"1,640","1,428",10.97,0.46,0.00,0.00
+bbbp_train,string,SAFE SMIRK SGPE,"1,640","1,428",36.51,1.53,0.00,0.00
+bbbp_train,string,SAFE SMIRK SPCATT,"1,640","1,428",36.56,1.53,0.00,0.00
+bbbp_train,string,SAFE SPCATT,"1,640","1,428",36.57,1.54,0.00,0.00
+bbbp_train,string,SAFE SPE,"1,640","1,428",10.62,0.45,0.53,3.08
+bbbp_train,string,SMILES APE,"1,640","1,640",16.14,0.71,36.42,41.34
+bbbp_train,string,SMILES BPE,"1,640","1,640",14.08,0.62,0.00,0.00
+bbbp_train,string,SMILES SBPE,"1,640","1,640",30.31,1.33,0.00,0.00
+bbbp_train,string,SMILES SMIRK,"1,640","1,640",43.72,1.92,0.00,0.00
+bbbp_train,string,SMILES SMIRK SPCATT,"1,640","1,640",40.48,1.78,0.00,0.00
+bbbp_train,string,SMILES SPCATT,"1,640","1,640",30.37,1.33,0.00,0.00
+bbbp_train,string,SMILES SPE,"1,640","1,640",9.98,0.44,15.37,34.33
+bbbp_train,fragment,TSDY BRICS,"1,640","1,639",8.27,0.36,13.85,90.18
+bbbp_train,fragment,TSDY MMPA,"1,640","1,639",18.40,0.81,4.59,67.05
+bbbp_train,fragment,TSID BRICS,"1,640","1,639",8.27,0.36,16.40,94.94
+bbbp_train,fragment,TSID MMPA,"1,640","1,639",18.40,0.81,7.07,85.72
+bbbp_train,fragment,TSIS BRICS,"1,640","1,639",4.84,0.21,26.72,94.94
+bbbp_train,fragment,TSIS MMPA,"1,640","1,639",14.08,0.62,8.96,85.72
+bbbp_train,fragment,TSSA BRICS,"1,640","1,639",11.75,0.52,8.62,83.34
+bbbp_train,fragment,TSSA MMPA,"1,640","1,639",24.12,1.06,2.00,41.55
+bbbp_train,fragment,Enhanced TSDY,"1,640","1,640",24.76,1.09,0.82,17.26
+bbbp_train,fragment,Base TSDY,"1,640","1,640",21.62,0.95,3.84,59.21
+bbbp_train,fragment,Base TSID,"1,640","1,640",21.62,0.95,5.16,77.07
+bbbp_train,fragment,Base TSIS,"1,640","1,640",16.99,0.75,6.57,77.07
+bbbp_train,fragment,Base fragSMILES,"1,640","1,640",17.20,0.76,8.02,39.70
+bbbp_train,fragment,PS-TSDY,"1,640","1,640",12.17,0.53,9.23,78.66
+bbbp_train,fragment,PS-TSID,"1,640","1,640",12.17,0.53,13.18,90.12
+bbbp_train,fragment,PS-TSIS,"1,640","1,640",8.57,0.38,18.72,90.12
+bbbp_train,fragment,PS-fragSMILES,"1,640","1,640",12.87,0.57,10.72,40.79
+bbbp_validation,string,SAFE APE,205,188,28.98,0.88,17.31,100.00
+bbbp_validation,string,SAFE BPE,205,188,17.28,0.52,0.00,0.00
+bbbp_validation,string,SAFE SBPE,205,188,54.98,1.67,0.00,0.00
+bbbp_validation,string,SAFE SMIRK,205,188,71.89,2.18,0.00,0.00
+bbbp_validation,string,SAFE SMIRK GPE,205,188,17.28,0.52,0.00,0.00
+bbbp_validation,string,SAFE SMIRK SGPE,205,188,54.98,1.67,0.00,0.00
+bbbp_validation,string,SAFE SMIRK SPCATT,205,188,55.01,1.67,0.00,0.00
+bbbp_validation,string,SAFE SPCATT,205,188,55.02,1.67,0.00,0.00
+bbbp_validation,string,SAFE SPE,205,188,16.77,0.51,0.25,2.66
+bbbp_validation,string,SMILES APE,205,205,27.88,0.88,43.24,60.49
+bbbp_validation,string,SMILES BPE,205,205,25.05,0.79,0.00,0.00
+bbbp_validation,string,SMILES SBPE,205,205,49.13,1.56,0.00,0.00
+bbbp_validation,string,SMILES SMIRK,205,205,67.09,2.12,0.00,0.00
+bbbp_validation,string,SMILES SMIRK SPCATT,205,205,63.68,2.02,0.00,0.00
+bbbp_validation,string,SMILES SPCATT,205,205,49.16,1.56,0.00,0.00
+bbbp_validation,string,SMILES SPE,205,205,16.55,0.52,19.72,58.05
+bbbp_validation,fragment,TSDY BRICS,205,205,11.10,0.35,14.51,93.17
+bbbp_validation,fragment,TSDY MMPA,205,205,23.40,0.74,5.90,80.98
+bbbp_validation,fragment,TSID BRICS,205,205,11.10,0.35,18.77,98.05
+bbbp_validation,fragment,TSID MMPA,205,205,23.40,0.74,9.72,95.61
+bbbp_validation,fragment,TSIS BRICS,205,205,7.32,0.23,27.78,98.05
+bbbp_validation,fragment,TSIS MMPA,205,205,18.00,0.57,12.50,95.61
+bbbp_validation,fragment,TSSA BRICS,205,205,16.54,0.52,8.64,88.78
+bbbp_validation,fragment,TSSA MMPA,205,205,31.79,1.01,2.72,65.37
+bbbp_validation,fragment,Enhanced TSDY,205,205,39.33,1.25,0.79,26.83
+bbbp_validation,fragment,Base TSDY,205,205,28.86,0.91,4.68,77.56
+bbbp_validation,fragment,Base TSID,205,205,28.86,0.91,6.34,92.20
+bbbp_validation,fragment,Base TSIS,205,205,22.73,0.72,8.05,92.20
+bbbp_validation,fragment,Base fragSMILES,205,205,25.60,0.81,10.67,60.98
+bbbp_validation,fragment,PS-TSDY,205,205,17.20,0.54,9.92,87.32
+bbbp_validation,fragment,PS-TSID,205,205,17.20,0.54,16.53,95.61
+bbbp_validation,fragment,PS-TSIS,205,205,12.75,0.40,22.31,95.61
+bbbp_validation,fragment,PS-fragSMILES,205,205,20.79,0.66,12.86,61.95
+bbbp_test,string,SAFE APE,194,163,24.72,0.86,18.52,100.00
+bbbp_test,string,SAFE BPE,194,163,13.61,0.47,0.00,0.00
+bbbp_test,string,SAFE SBPE,194,163,44.57,1.54,0.00,0.00
+bbbp_test,string,SAFE SMIRK,194,163,60.46,2.10,0.00,0.00
+bbbp_test,string,SAFE SMIRK GPE,194,163,13.61,0.47,0.00,0.00
+bbbp_test,string,SAFE SMIRK SGPE,194,163,44.57,1.54,0.00,0.00
+bbbp_test,string,SAFE SMIRK SPCATT,194,163,44.61,1.55,0.00,0.00
+bbbp_test,string,SAFE SPCATT,194,163,44.61,1.55,0.00,0.00
+bbbp_test,string,SAFE SPE,194,163,13.11,0.45,0.37,4.29
+bbbp_test,string,SMILES APE,194,194,19.45,0.72,37.92,48.97
+bbbp_test,string,SMILES BPE,194,194,17.23,0.64,0.00,0.00
+bbbp_test,string,SMILES SBPE,194,194,36.35,1.35,0.00,0.00
+bbbp_test,string,SMILES SMIRK,194,194,52.72,1.96,0.00,0.00
+bbbp_test,string,SMILES SMIRK SPCATT,194,194,48.41,1.80,0.00,0.00
+bbbp_test,string,SMILES SPCATT,194,194,36.39,1.35,0.00,0.00
+bbbp_test,string,SMILES SPE,194,194,12.08,0.45,15.88,45.88
+bbbp_test,fragment,TSDY BRICS,194,194,8.52,0.32,16.58,93.81
+bbbp_test,fragment,TSDY MMPA,194,194,19.62,0.73,5.78,73.71
+bbbp_test,fragment,TSID BRICS,194,194,8.52,0.32,19.18,98.45
+bbbp_test,fragment,TSID MMPA,194,194,19.62,0.73,9.32,94.33
+bbbp_test,fragment,TSIS BRICS,194,194,5.01,0.19,31.28,98.45
+bbbp_test,fragment,TSIS MMPA,194,194,14.97,0.56,12.09,94.33
+bbbp_test,fragment,TSSA BRICS,194,194,12.23,0.46,9.40,86.08
+bbbp_test,fragment,TSSA MMPA,194,194,26.36,0.98,2.17,45.36
+bbbp_test,fragment,Enhanced TSDY,194,194,28.30,1.05,0.71,19.07
+bbbp_test,fragment,Base TSDY,194,194,23.44,0.87,4.62,67.53
+bbbp_test,fragment,Base TSID,194,194,23.44,0.87,6.55,89.18
+bbbp_test,fragment,Base TSIS,194,194,18.31,0.68,8.39,89.18
+bbbp_test,fragment,Base fragSMILES,194,194,19.21,0.71,8.77,47.42
+bbbp_test,fragment,PS-TSDY,194,194,13.32,0.50,10.57,86.08
+bbbp_test,fragment,PS-TSID,194,194,13.32,0.50,15.02,93.81
+bbbp_test,fragment,PS-TSIS,194,194,9.47,0.35,21.11,93.81
+bbbp_test,fragment,PS-fragSMILES,194,194,14.04,0.52,11.57,50.00

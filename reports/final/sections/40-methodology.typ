@@ -15,7 +15,7 @@
 
 *Vocabulary budget.* The shared and enhanced experiments each allocated 5,000 entries per tokenizer, including special tokens. The PS miner used the tokenizer corpus, a budget of 1,000 merge rules, and a minimum frequency of 10. The same learned rules were applied to all four PS conditions. For enhanced TSDY, 81 grammar tokens and seven special tokens occupy fixed entries. The remaining 4,912 entries hold the most frequent chemical cores in the tokenizer corpus.
 
-*Model training.* Each controlled tokenizer had its own RoBERTa encoder @liu2019roberta pretrained from scratch with seed 42. The encoder had six layers, 12 attention heads, hidden size 768, and feed-forward size 1,536. Training used the Hugging Face Transformers Trainer @wolf2020transformers with the settings in @method-training. Dynamic masking selected 15% of eligible positions as prediction targets. Tokenizer construction ran on CPU nodes (AMD EPYC 7763), while model training ran on GPU nodes (NVIDIA H100 96GB) on the NUS School of Computing cluster using Slurm (Appendix A).
+*Model training.* Each controlled tokenizer had its own RoBERTa encoder @liu2019roberta pretrained from scratch with seed 42. The encoder had six layers, 12 attention heads, hidden size 768, and feed-forward size 1,536. Training used the Hugging Face Transformers Trainer @wolf2020transformers with the settings in @method-training. Dynamic masking selected 15% of eligible positions as prediction targets. Tokenizer construction ran on CPU nodes (AMD EPYC 7763), while model training ran on GPU nodes (NVIDIA H100 96GB) on the NUS School of Computing cluster using Slurm (Appendix B).
 
 #figure(
   table(
@@ -60,19 +60,17 @@ The downstream protocol uses three finetuning seeds (42, 43, and 44) per configu
 
 == Intrinsic evaluation
 
-Each tokenizer was evaluated on 53,159 input rows: 10,000 PubChem rows sampled from a saved test corpus (seed 42), 41,120 HIV rows, and 2,039 BBBP rows. The audit used each tokenizer's saved vocabulary.
+The intrinsic comparison in Appendix D covers 33 tokenizer configurations. Each was evaluated on the same 53,159 input rows: 10,000 PubChem rows sampled from a saved test corpus (seed 42), 41,120 HIV rows, and 2,039 BBBP rows. The audit used each tokenizer's saved vocabulary and recorded metrics separately for PubChem and for each HIV and BBBP split. Appendix D presents all 33 configurations for each input group. Section 5.4 reports selected comparisons on the downstream test splits.
 
 === Encoding and vocabulary metrics
 - *Encoding success rate.* Fraction of attempted rows that produced a token sequence successfully. The strict SAFE audit counted conversion failures even when the historical training pipeline would have used a SMILES fallback.
 - *Mean sequence length.* Mean number of content tokens per successfully encoded molecule, measured before truncation. Connection and tree tokens count towards length. Model boundary tokens and padding are excluded.
 - *Token fertility (tokens per heavy atom).* Total content tokens divided by total non-hydrogen atoms across the successfully encoded molecules. This measures sequence length relative to molecular size.
 - *UNK token rate.* Number of positions assigned the unknown-token ID divided by the number of content tokens across all successfully encoded molecules.
-- *Molecules containing UNK.* Fraction of successfully encoded molecules with at least one unknown token. Each affected molecule counts once, regardless of how many unknown tokens it contains.
+- *Molecules containing UNK rate.* Fraction of successfully encoded molecules with at least one unknown token. Each affected molecule counts once, regardless of how many unknown tokens it contains.
 
 Paired comparisons used rows that both tokenizers encoded successfully.
 
-=== Reconstruction and fragment sharing
-- *Representation reconstruction rate.* Fraction of checked molecules recovered by decoding the full representation before vocabulary lookup without losing any information like stereochemistry.
-- *Vocabulary reconstruction rate.* Fraction recovered after mapping the tokens to vocabulary IDs and decoding. An unknown token counts as a failure.
+=== Fragment sharing
 - *Decorated forms per core.* For base and enhanced TSDY, fragments were paired by their atoms in the shared partition. For each clean core, the audit counted the distinct base TSDY fragment strings that mapped to it.
 - *Fragment UNK rate.* Unknown fragment occurrences divided by all matched fragment occurrences. Excluding tree and attachment tokens gives both representations the same denominator.

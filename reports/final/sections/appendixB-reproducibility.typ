@@ -17,5 +17,7 @@ For downstream finetuning, the loader downloads the MoleculeNet HIV and BBBP dat
 - HIV: #address("https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/HIV.csv")
 - BBBP: #address("https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv")
 
-*Results.* The Weights & Biases project records training curves and test scores. \
-#address("https://wandb.ai/ncduy0303/molecule-tokenization")
+*Experiment records.* The Weights & Biases project (#address("https://wandb.ai/ncduy0303/molecule-tokenization")) provides two saved views:
+
+- #link("https://wandb.ai/ncduy0303/molecule-tokenization?nw=d2odmpoik86")[FYP Final Report] groups the 207 downstream runs into 69 comparisons with three finetuning seeds each.
+- #link("https://wandb.ai/ncduy0303/molecule-tokenization?nw=bgzbsfs4rwz")[FYP Pretraining] lists 30 pretraining MLM runs.

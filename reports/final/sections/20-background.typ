@@ -63,7 +63,7 @@ The later TSIS representation simplifies TSID by reading from the acyclic molecu
   caption: [Fragmentation and tree representations used by t-SMILES. Source: @wu2024hierarchical.],
 ) <background-tsmiles>
 
-Dummy atoms, written as `*`, mark attachment sites within a fragment. TSID and TSIS additionally label these sites with connection identifiers (e.g., `[*1]`, `[*2]`), allowing corresponding sites in different fragments to be paired during reconstruction. TSDY retains the dummy atoms but omits these identifiers, so the explicit pairing information is lost.
+Dummy atoms, written as `*`, mark attachment sites within a fragment. TSID and TSIS additionally label these sites with connection identifiers (e.g., `[1*]`, `[2*]`), allowing corresponding sites in different fragments to be paired during reconstruction. TSDY retains the dummy atoms but omits these identifiers, so the explicit pairing information is lost.
 
 Even without identifiers, fragments containing the same core can differ in the positions or number of dummy atoms. Under whole-fragment tokenization, these different strings require separate vocabulary entries. This motivates separating attachment information from the fragment core.
 
