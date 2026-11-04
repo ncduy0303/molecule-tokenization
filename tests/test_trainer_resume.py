@@ -113,7 +113,7 @@ class TrainerResumeTests(unittest.TestCase):
                         "experiments.tokenizer_benchmark.TokenizerBenchmarkExperiment._load_dataset",
                         return_value=splits,
                     ),
-                    patch("experiments.downstream_classification.load_molnet", return_value=splits),
+                    patch("datamodules.molecule_datasets.molnet.load_molnet", return_value=splits),
                 ):
                     experiment_at(root / "first").training()
                     checkpoint = next((root / "first").glob("checkpoint-*"))

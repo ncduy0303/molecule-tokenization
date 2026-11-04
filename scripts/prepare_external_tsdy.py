@@ -23,19 +23,21 @@ from rdkit import Chem
 SPECIAL_TOKENS = ["[BOS]", "[PAD]", "[EOS]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
 
 
-def vocabulary_artifacts(counts, identity):
+def vocabulary_artifacts(counts, identity, vocab_size=5000):
     """Deterministic frequency vocabulary; grammar words are ordinary tokens."""
     reserved = SPECIAL_TOKENS + sorted(COMPACT_GRAMMAR)
     if set(counts) & set(reserved):
         raise ValueError("Core collides with a reserved token")
-    budget = 5000 - len(reserved)
+    budget = vocab_size - len(reserved)
+    if budget < 1:
+        raise ValueError("Vocabulary needs room for at least one chemical core")
     cores = sorted(counts, key=lambda core: (-counts[core], core))[:budget]
     vocab = {word: i for i, word in enumerate(reserved + cores)}
     total = sum(counts.values())
     return vocab, dict(
         token_format=TOKEN_FORMAT,
         source=identity,
-        max_vocab_size=5000,
+        max_vocab_size=vocab_size,
         actual_vocab_size=len(vocab),
         special_tokens=SPECIAL_TOKENS,
         grammar=sorted(COMPACT_GRAMMAR),
@@ -43,7 +45,7 @@ def vocabulary_artifacts(counts, identity):
         core_occurrences=total,
         retained_core_occurrences=sum(counts[c] for c in cores),
         counts_include_overlength=True,
-        status="Word vocabulary only; HF tokenizer and training-loader integration still required.",
+        status="Fitted word vocabulary for enhanced TSDY.",
     )
 
 
@@ -97,10 +99,19 @@ def main():
     p.add_argument("--output", type=Path, default=Path("outputs/enhanced_tsdy_v3_1/preflight_2m"))
     p.add_argument("--workers", type=int, default=8)
     p.add_argument("--shard-size", type=int, default=2048)
-    p.add_argument("--limit", type=int, default=2000000)
+    rows = p.add_mutually_exclusive_group()
+    rows.add_argument("--all-rows", action="store_true", help="Fit the entire supplied corpus")
+    rows.add_argument("--limit", type=int, default=2000000)
     p.add_argument("--max-content-tokens", type=int, default=510)
     p.add_argument("--resume", action="store_true")
+    p.add_argument("--vocab-size", type=int, default=5000)
+    p.add_argument("--tokenizer-output", type=Path, help="Also export a loadable HF tokenizer")
     a = p.parse_args()
+    if a.all_rows:
+        with a.input.open() as source:
+            a.limit = sum(1 for _ in source)
+    if a.vocab_size <= len(SPECIAL_TOKENS) + len(COMPACT_GRAMMAR):
+        p.error("Vocabulary needs room for the reserved tokens and at least one core")
     if min(a.workers, a.shard_size, a.limit, a.max_content_tokens) < 1:
         p.error("Arguments must be positive")
     source_meta = Path(str(a.input) + ".meta.json")
@@ -110,6 +121,7 @@ def main():
         input_sha256=file_digest(a.input),
         token_format=TOKEN_FORMAT,
         limit=a.limit,
+        vocab_size=a.vocab_size,
         shard_size=a.shard_size,
         max_content_tokens=a.max_content_tokens,
         rdkit=version("rdkit"),
@@ -196,7 +208,7 @@ def main():
             vocabulary_gate_passed=passed,
             model_length_gate_passed=passed and not stats["overlength"],
             unique_cores=len(counts),
-            core_budget=5000 - len(SPECIAL_TOKENS) - len(COMPACT_GRAMMAR),
+            core_budget=a.vocab_size - len(SPECIAL_TOKENS) - len(COMPACT_GRAMMAR),
             failure_reasons=dict(reasons),
             token_format=TOKEN_FORMAT,
             note="Vocabulary gate requires complete reconstruction. Length is reported separately; no training truncation or row dropping is authorized by this audit.",
@@ -211,7 +223,7 @@ def main():
             ),
         )
         if passed:
-            vocab, metadata = vocabulary_artifacts(counts, identity)
+            vocab, metadata = vocabulary_artifacts(counts, identity, a.vocab_size)
             folder = a.output / "vocabulary"
             folder.mkdir(exist_ok=True)
             write_json(folder / "vocab.json", vocab)
@@ -222,6 +234,10 @@ def main():
         print(json.dumps(summary, indent=2))
         if not passed:
             raise SystemExit(2)
+        if a.tokenizer_output:
+            from utils.external_tsdy_tokenizer import export_tokenizer
+
+            export_tokenizer(a.output, a.tokenizer_output)
     finally:
         lock.rmdir()
 

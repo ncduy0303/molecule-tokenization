@@ -63,7 +63,6 @@ class DownstreamClassificationExperiment(BaseExperiment):
         "fragsmiles_classifier": MoleculeClassificationAlgo,
         "tsmiles_classifier": MoleculeClassificationAlgo,
         "external_tsdy_classifier": MoleculeClassificationAlgo,
-        "ps_fragsmiles_classifier": MoleculeClassificationAlgo,
         "pcatt_classifier": MoleculeClassificationAlgo,
         "smirk_classifier": MoleculeClassificationAlgo,
         "smirk_pcatt_classifier": MoleculeClassificationAlgo,

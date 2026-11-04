@@ -1,5 +1,8 @@
+import json
+import tempfile
 import unittest
-from scripts.evaluate_intrinsic import percentile, summarize, load, convert, conditions, decode_frag_words
+from pathlib import Path
+from scripts.evaluate_intrinsic import percentile, summarize, convert, decode_frag_words
 from utils.external_tsdy import molecules_equal
 
 
@@ -14,8 +17,13 @@ class IntrinsicTests(unittest.TestCase):
         self.assertEqual(percentile([1, 3], 0.5), 2)
 
     def test_native_smirk_ids(self):
-        item = next(x for x in conditions() if x["name"] == "CA_SMILY_SMIRK_GPE")
-        tok = load(item)
+        from smirk import SmirkTokenizerFast, train_gpe
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "smiles.txt"
+            corpus.write_text("CCCCCCCCO\n" * 8)
+            tok = train_gpe(files=[str(corpus)], ref=SmirkTokenizerFast(), vocab_size=180, min_frequency=1)
+        item = {"representation": "smiles"}
         s = "CC(C)CCCCCCCCCCCCCCNc1ccc(C(=O)NCC(=O)[O-])cc1[N+](=O)[O-]"
         words, _, _ = convert(s, item, tok, None)
         self.assertEqual(words.native_ids, tok(s, add_special_tokens=False)["input_ids"])
@@ -25,8 +33,10 @@ class IntrinsicTests(unittest.TestCase):
         self.assertTrue(molecules_equal("CCOc1ccccc1", decode_frag_words(["C", "C", "O", "<0>", "c1ccccc1"])))
 
     def test_greedtok_native_ids(self):
-        item = next(x for x in conditions() if x["name"] == "CA_SMILY_SPCATT")
-        tok = load(item)
+        from pcatt.hf.greedtok import GreedTok
+
+        tok = GreedTok(ranked_tokens=["C", "O", "CC"])
+        item = {"representation": "smiles"}
         words, decoder, _ = convert("CCO", item, tok, None)
         expected = tok("CCO", add_special_tokens=False)["input_ids"]
         if expected and isinstance(expected[0], list):
@@ -35,8 +45,13 @@ class IntrinsicTests(unittest.TestCase):
         self.assertIsNone(decoder)
 
     def test_ambiguous_tsdy_not_claimed_reconstructable(self):
-        item = next(x for x in conditions() if x["name"] == "shared_base_TSDY")
-        tok = load(item)
+        from utils.tsmiles_tokenizer import TSMILESTokenizer
+
+        item = {"representation": "shared", "variant": "TSDY"}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vocab.json"
+            path.write_text(json.dumps({"[UNK]": 0, "&": 1, "^": 2}))
+            tok = TSMILESTokenizer(str(path), preserve_components=True)
         words, decoder, _ = convert("CCO", item, tok, None)
         self.assertIsNone(decoder)
         self.assertFalse(hasattr(words, "raw_decoded"))

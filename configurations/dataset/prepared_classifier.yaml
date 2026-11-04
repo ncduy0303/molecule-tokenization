@@ -1,0 +1,8 @@
+defaults:
+  - base_dataset
+
+name: prepared_classifier
+prepared_path: ???
+prepared_task: classification
+max_length: 512
+seed: 42

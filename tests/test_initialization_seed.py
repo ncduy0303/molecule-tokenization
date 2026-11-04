@@ -78,7 +78,7 @@ class InitializationSeedTests(unittest.TestCase):
                 raise Captured
 
             exp.algo = SimpleNamespace(tokenizer=None, build_model=model)
-            with patch("experiments.downstream_classification.load_molnet", side_effect=load):
+            with patch("datamodules.molecule_datasets.molnet.load_molnet", side_effect=load):
                 with self.assertRaises(Captured):
                     getattr(exp, method)()
             return weights[0]

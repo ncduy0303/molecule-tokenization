@@ -59,14 +59,7 @@ def conditions():
                     slicer=slicer,
                 )
             )
-    for name in ("FRAGSMILES_5K", "PS_FRAGSMILES_5K_20K_MF1", "PS_FRAGSMILES_5K_20K_MF2"):
-        items.append(
-            dict(
-                name="CA_" + name,
-                path=str(base / ("CANONICAL_" + name)),
-                representation="old_ps" if name.startswith("PS") else "fragsmiles",
-            )
-        )
+    items.append(dict(name="CA_FRAGSMILES_5K", path=str(base / "CANONICAL_FRAGSMILES_5K"), representation="fragsmiles"))
     for mode in ("base", "ps"):
         for variant in ("fragsmiles", "TSDY", "TSID", "TSIS"):
             items.append(
@@ -148,7 +141,6 @@ def load(item):
         "SMILES_SPE_Tokenizer": "utils.spe_tokenizer",
         "TSMILESTokenizer": "utils.tsmiles_tokenizer",
         "FragSMILESTokenizer": "utils.fragsmiles_tokenizer",
-        "PSFragSMILESTokenizer": "utils.ps_fragsmiles_tokenizer",
         "SmirkPCATTTokenizer": "utils.smirk_pcatt_tokenizer",
         "ExternalTSDYTokenizer": "utils.external_tsdy_tokenizer",
     }
@@ -229,22 +221,17 @@ def convert(smi, item, tok, ps):
                 parts.append(value.strip())
         text = ".".join(parts)
         # Upstream t-SMILES decoder compatibility has not been verified here.
-    elif rep == "old_ps":
-        text = tok._get_ps_tokenizer().encode(smi, canonize=True, random=False, capitalize_legacy=True)
     elif rep == "fragsmiles":
         import chemicalgof
 
         text = ";".join(chemicalgof.encode(c, canonical=True) for c in smi.split("."))
     else:
         text = smi
-    if rep in ("fragsmiles", "old_ps") or (rep == "shared" and item["variant"] == "fragsmiles"):
+    if rep == "fragsmiles" or (rep == "shared" and item["variant"] == "fragsmiles"):
         import chemicalgof
         from utils.fragsmiles_utils import split_fragsmiles_tokens
 
-        if rep == "old_ps":
-            words = [w for c in text.split(";") for w in chemicalgof.split(c) if w]
-        else:
-            words = [w for w in split_fragsmiles_tokens(text, getattr(tok, "preserve_components", False)) if w]
+        words = [w for w in split_fragsmiles_tokens(text, getattr(tok, "preserve_components", False)) if w]
         decode = decode_frag_words
         words = Words(words)
         raw_decode(words, lambda: ".".join(chemicalgof.decode(c) for c in text.split(";")))

@@ -31,4 +31,4 @@ python -m main experiment=tokenizer_benchmark \
 
 `algorithm=train_shared_ps` learns `ps_merges.json` from raw SMILES. Then use `train_fragsmiles` or `train_tsmiles` with `dataset.fragmentation=exocyclic` and, optionally, `dataset.ps_merges_path=PATH`. Keep the same representation settings for MLM and classification.
 
-For Slurm, use the [job wrappers](../scripts/README.md). Do not combine them with `cluster=...`, which selects a separate submission path.
+For Slurm, use the [single-job batch file](../scripts/slurm/single_run.sbatch). Do not combine them with `cluster=...`, which selects a separate submission path.

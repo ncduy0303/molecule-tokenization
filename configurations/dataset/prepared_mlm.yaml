@@ -1,0 +1,8 @@
+defaults:
+  - base_dataset
+
+name: prepared_mlm
+prepared_path: ???
+prepared_task: mlm
+max_length: 512
+seed: 42

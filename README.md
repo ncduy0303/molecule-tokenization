@@ -1,14 +1,12 @@
 # Advanced Tokenization Methods for Molecular Foundation Models
 
-NUS School of Computing Final Year Project by Nguyen Cao Duy, supervised by Dr. Bian Yatao. Project ID: H437020, academic year 2025-2026.
+Nguyen Cao Duy · NUS School of Computing · B.Comp. Final Year Project H437020 · Academic Year 2026/2027 · Supervisor: Dr. Bian Yatao
 
-This project studies how molecular tokenization affects masked language modeling and molecular property prediction. It compares SMILES-based tokenizers, fragSMILES and t-SMILES, including shared exocyclic fragmentation, learned principal-subgraph merges, and an enhanced TSDY representation that separates fragment cores from attachment information.
-
-The pipeline is **tokenizer construction -> RoBERTa MLM pretraining -> property classification on HIV or BBBP**. Datasets, trained models and generated results are not included in Git.
+This project compares ways to turn molecules into token sequences for property prediction. It tests how the choice of fragment boundaries affects prediction on HIV and BBBP, and whether different attachment patterns can share a vocabulary entry for the same chemical fragment. The [final report](reports/final/) describes the methods and experiments.
 
 ## Setup
 
-Run commands from the repository root:
+Run the following from the repository root with Git and [uv](https://docs.astral.sh/uv/) installed:
 
 ```bash
 uv sync --locked
@@ -16,63 +14,64 @@ source .venv/bin/activate
 python -m main --cfg job --resolve
 ```
 
-The last command displays the default configuration without starting training. Installation requires Git and network access. Dataset loaders download their source data when local caches are absent. Use a GPU for model training.
+The last command prints the selected configuration. The training commands below download data on first use and write caches and checkpoints locally. Use a GPU for model training. For an example that uses your own SMILES files and CSV splits, see [enhanced TSDY from local files](scripts/SINGLE_RUNS.md#enhanced-tsdy-from-local-files).
 
 ## Run a baseline
 
-These BPE examples connect each stage using explicit output paths. Use fresh output and cache directories for a new experiment. The defaults use a 5,000-token vocabulary, 2,000,000 tokenizer-training molecules and 20 MLM epochs.
+This example fits one SMILES BPE tokenizer, pretrains one RoBERTa masked language model (MLM), and finetunes it for blood-brain barrier penetration (BBBP). The example uses reduced PubChem sample sizes and one MLM epoch. The [experimental methodology](reports/final/sections/40-methodology.typ) gives the settings used for the reported scores.
 
-### 1. Train the tokenizer
-
-```bash
-python -m main +name=bpe_tokenizer \
-  experiment=tokenizer_training dataset=pubchem10m_tokenizer_train \
-  algorithm=train_bpe \
-  dataset.data_dir=data/bpe_baseline/tokenizer \
-  hydra.run.dir=outputs/bpe_baseline/tokenizer
-```
-
-### 2. Pretrain the MLM
+Choose fresh cache and output directories. Run the commands in the same shell:
 
 ```bash
-python -m main +name=bpe_mlm \
-  experiment=tokenizer_benchmark dataset=pubchem10m_mlm_train \
-  algorithm=bpe_roberta \
-  dataset.data_dir=data/bpe_baseline/mlm \
-  dataset.tokenizer_indices_path=data/bpe_baseline/tokenizer/subset_indices.json \
-  algorithm.tokenizer.pretrained=outputs/bpe_baseline/tokenizer/tokenizer \
-  hydra.run.dir=outputs/bpe_baseline/mlm
+CACHE=data/my-bpe
+RUN=outputs/my-bpe
+REV=802e0824f41f8bade43fa95fd7d02fe80703a1d5
+SEED=42
+
+# Fit the tokenizer and record which PubChem rows were used.
+python -m main +name=bpe-fit experiment=tokenizer_training \
+  dataset=pubchem10m_tokenizer_train algorithm=train_bpe \
+  dataset.hf_revision="$REV" dataset.seed="$SEED" dataset.corpus_size=10000 \
+  algorithm.tokenizer.vocab_size=5000 dataset.data_dir="$CACHE/fit" hydra.run.dir="$RUN/fit"
+
+# Pretrain on separate rows from the same dataset revision.
+python -m main +name=bpe-mlm experiment=tokenizer_benchmark \
+  dataset=pubchem10m_mlm_train algorithm=bpe_roberta \
+  dataset.hf_revision="$REV" dataset.seed="$SEED" dataset.data_dir="$CACHE/mlm" \
+  dataset.tokenizer_indices_path="$CACHE/fit/subset_indices.json" \
+  dataset.train_size=20000 dataset.val_size=2000 dataset.test_size=2000 \
+  algorithm.tokenizer.pretrained="$RUN/fit/tokenizer" experiment.training.seed="$SEED" \
+  experiment.training.num_train_epochs=1 hydra.run.dir="$RUN/mlm"
+
+# Finetune from the MLM weights using the same tokenizer.
+python -m main +name=bpe-bbbp experiment=downstream_classification \
+  dataset=molnet_bbbp algorithm=bpe_classifier dataset.data_dir="$CACHE/bbbp" \
+  algorithm.tokenizer.pretrained="$RUN/fit/tokenizer" \
+  algorithm.model.pretrained="$RUN/mlm/final_checkpoint" \
+  experiment.training.seed="$SEED" hydra.run.dir="$RUN/bbbp"
 ```
 
-### 3. Fine-tune and evaluate
+Read `$RUN/bbbp/test_results.json` for test ROC-AUC. The classifier selected by validation ROC-AUC is in `$RUN/bbbp/best_model/`. To evaluate HIV, change the final command to `dataset=molnet_hiv` and give it a separate name, cache, and output directory.
 
-```bash
-python -m main +name=bpe_bbbp \
-  experiment=downstream_classification dataset=molnet_bbbp \
-  algorithm=bpe_classifier \
-  dataset.data_dir=data/bpe_baseline/bbbp \
-  algorithm.tokenizer.pretrained=outputs/bpe_baseline/tokenizer/tokenizer \
-  algorithm.model.pretrained=outputs/bpe_baseline/mlm/final_checkpoint \
-  hydra.run.dir=outputs/bpe_baseline/bbbp
-```
+## Choose a method
 
-For HIV, change `dataset=molnet_hiv` and use separate HIV cache/output paths and a run name. Classification selects a checkpoint using validation performance, evaluates test ROC-AUC, and exports `best_model/`.
+| Report comparison                            | What to run                                                                                                                                                                                                                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Initial benchmark (§5.1, Appendix D)         | The baseline above uses BPE on SMILES. The [algorithm presets](configurations/algorithm/) also cover SMIRK, PCATT, SPE, APE, fragSMILES, and t-SMILES. [Dataset settings](datamodules/README.md) control conversion to SAFE or fragment strings.                                           |
+| Shared fragmentation and PS merging (§5.2)   | Use an exocyclic partition with fragSMILES, TSID, TSDY, or TSIS. For the PS variant, fit one rule file on the tokenizer corpus and pass it to each later stage. [Mining, tokenizer fitting, MLM, and finetuning commands](scripts/SINGLE_RUNS.md#shared-ps-mining-and-fragment-vocabulary) |
+| Enhanced TSDY (§5.3)                         | Fit a vocabulary of clean fragment cores and attachment tokens, then prepare MLM or binary classification splits. [Local-file workflow](scripts/SINGLE_RUNS.md#enhanced-tsdy-from-local-files)                                                                                             |
+| Intrinsic evaluation (§§5.4–5.5, Appendix C) | Supply a saved tokenizer, its representation settings, and a SMILES file to measure token length, unknown-token frequency, and reconstruction. [Evaluation command and output files](scripts/SINGLE_RUNS.md#intrinsic-evaluation)                                                          |
 
-## Reproducibility and logging
+## Configure a run
 
-- Pin the same `dataset.hf_revision` in both PubChem stages for reproducible source selection. MLM excludes the tokenizer corpus's source-row indices; this does not deduplicate chemically identical molecules in different rows.
-- Keep representation settings and tokenizer artifacts matched across all stages. Preset artifact paths refer to local research runs; override them with your own paths.
-- Cache provenance is validated. If source or conversion settings change, use a fresh `dataset.data_dir` instead of overwriting old artifacts.
-- W&B is disabled by default. To enable it, run `wandb login` and add `wandb.mode=online wandb.entity=YOUR_ENTITY wandb.project=YOUR_PROJECT` to model-training commands.
-- Resume training with `resume=/absolute/path/to/checkpoint-N`.
+- **Inputs and outputs.** Supply your own tokenizer and model paths when selecting a preset. Keep the representation and merge rules consistent across stages. Use a fresh cache when changing the data revision or encoding settings.
+- **Seeds.** `dataset.seed` controls data selection. `experiment.training.seed` controls training. To repeat finetuning, reuse the MLM, tokenizer, and split, change the training seed, and choose a new output directory.
+- **Execution.** Each command runs one experiment. To submit it to Slurm, pass the same overrides to the [single-job batch file](scripts/slurm/single_run.sbatch). Optional W&B logging uses `wandb.mode=online wandb.entity=YOUR_ENTITY wandb.project=YOUR_PROJECT` after `wandb login`. Local metrics are written with the default disabled logging mode.
+- **Checkpoints.** To resume an interrupted training run from a full Trainer checkpoint, see [checkpoint settings](experiments/README.md#resuming-training).
 
-## Where to go next
+## Report and attribution
 
-- [Configuration reference](configurations/README.md): choose tokenizer families, representations and training settings.
-- [Cluster scripts](scripts/README.md): submit jobs on Slurm after adapting resource requests to your cluster.
-- [Research reports](reports/README.md): project motivation and Continual Assessment report/slides.
-
-For code changes, start at [main.py](main.py). Pipeline stages live in `experiments/`, tokenizer/model construction in `algorithms/`, dataset preparation in `datamodules/`, and molecular encoders and helpers in `utils/`. Each directory has a short README for local details.
+See the [final report directory](reports/final/) for the Typst source and [reports/CA](reports/CA/) for the earlier midterm report.
 
 ## Template attribution
 

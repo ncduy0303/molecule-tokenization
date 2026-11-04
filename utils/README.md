@@ -8,7 +8,6 @@ This directory contains representation conversion, tokenizer wrappers and shared
 | `safe_utils.py`, `fragsmiles_utils.py`, `tsmiles_utils.py` | Historical representation conversion                 |
 | `shared_fragmentation.py`, `shared_ps.py`                  | Shared exocyclic partition and learned PS merges     |
 | `external_tsdy.py`, `external_tsdy_tokenizer.py`           | Enhanced TSDY encoding, decoding and tokenization    |
-| [ps/](ps/README.md)                                        | Legacy ring-initialized PS-fragSMILES implementation |
 | `cache_utils.py`                                           | Cache provenance, checksums and corpus exclusion     |
 | `ckpt_utils.py`                                            | Full training-checkpoint validation                  |
 | `smirk_utils.py`                                           | Shared SMIRK vocabulary loading                      |
