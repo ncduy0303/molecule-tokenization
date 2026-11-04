@@ -117,7 +117,7 @@ Both TSDY models therefore used the same 32,900 training rows. All 4,113 validat
 
 == Sequence length and vocabulary coverage
 
-On PubChem, structural pre-splitting increased the mean length of SMILES BPE sequences from 7.18 to 28.27 tokens, and its mean prediction scores were higher on both tasks in Section 5.1. For TSDY, switching from BRICS to MMPA also lengthened the sequences, from 9.01 to 21.08 tokens per molecule, but reduced the UNK token rate from 10.19% to 1.57%.
+For TSDY, changing the fragmentation rule from BRICS to MMPA increased the mean PubChem sequence length from 9.01 to 21.08 tokens per molecule, but reduced the UNK token rate from 10.19% to 1.57%. The longer sequences used fragments that the vocabulary covered more often.
 
 *Effect of PS merging.* Merging reduced token fertility for every shared representation, but increased the fraction of content tokens mapped to UNK (@intrinsic-pubchem). TSID and TSDY illustrate why both measures matter. Their fertility fell from 1.02 to 0.46 in both cases, yet the merged TSID vocabulary left 11.43% of token positions unknown compared with 4.97% for TSDY. The coverage difference is consistent with the cost of storing numbered attachment sites discussed in Section 5.1.
 
