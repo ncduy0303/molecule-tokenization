@@ -10,7 +10,7 @@ defaults:
 debug: false
 
 wandb:
-  entity: ncduy0303 # Override with your own account for online logging.
+  entity: null # Set your W&B account when enabling online logging.
   project: molecule-tokenization
   mode: disabled # Set online or offline for Hugging Face Trainer logging.
 

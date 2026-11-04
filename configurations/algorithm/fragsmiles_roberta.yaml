@@ -3,6 +3,4 @@ defaults:
 
 tokenizer:
   type: fragsmiles
-  pretrained: "data/pretrained_tokenizers/CANONICAL_FRAGSMILES_5K"
-  # pretrained: "data/pretrained_tokenizers/CANONICAL_FRAGSMILES_20K"
-  # pretrained: "data/pretrained_tokenizers/CANONICAL_FRAGSMILES_50K"
+  pretrained: ???

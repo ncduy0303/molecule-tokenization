@@ -95,19 +95,19 @@ def write_shard(path, pool, batch, start, max_content_tokens):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--input", type=Path, default=Path("data/shared_study_2m_v2/miner/corpus.txt"))
-    p.add_argument("--output", type=Path, default=Path("outputs/enhanced_tsdy_v3_1/preflight_2m"))
+    p.add_argument("--input", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
     p.add_argument("--workers", type=int, default=8)
     p.add_argument("--shard-size", type=int, default=2048)
     rows = p.add_mutually_exclusive_group()
     rows.add_argument("--all-rows", action="store_true", help="Fit the entire supplied corpus")
-    rows.add_argument("--limit", type=int, default=2000000)
+    rows.add_argument("--limit", type=int)
     p.add_argument("--max-content-tokens", type=int, default=510)
     p.add_argument("--resume", action="store_true")
     p.add_argument("--vocab-size", type=int, default=5000)
     p.add_argument("--tokenizer-output", type=Path, help="Also export a loadable HF tokenizer")
     a = p.parse_args()
-    if a.all_rows:
+    if a.limit is None:
         with a.input.open() as source:
             a.limit = sum(1 for _ in source)
     if a.vocab_size <= len(SPECIAL_TOKENS) + len(COMPACT_GRAMMAR):

@@ -71,7 +71,7 @@ Read `$RUN/bbbp/test_results.json` for test ROC-AUC. The classifier selected by 
 
 ## Report and attribution
 
-See the [final report directory](reports/final/) for the Typst source and [reports/CA](reports/CA/) for the earlier midterm report.
+Read the [final dissertation](reports/final/FYP_Final_Report.pdf) or browse the [Typst source](reports/final/main.typ). The W&B [downstream results](https://wandb.ai/ncduy0303/molecule-tokenization?nw=d2odmpoik86) and [pretraining runs](https://wandb.ai/ncduy0303/molecule-tokenization?nw=bgzbsfs4rwz) correspond to the report. The [earlier assessment](reports/CA/) is archived separately.
 
 ## Template attribution
 

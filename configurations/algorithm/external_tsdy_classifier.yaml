@@ -3,7 +3,7 @@ defaults:
 
 tokenizer:
   type: external_tsdy
-  pretrained: outputs/enhanced_tsdy_v3_1/tokenizer
+  pretrained: ???
 
 model:
-  pretrained: outputs/enhanced_tsdy_v3_1/mlm/final_checkpoint
+  pretrained: ???

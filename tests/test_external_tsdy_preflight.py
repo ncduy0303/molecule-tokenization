@@ -25,20 +25,6 @@ class PreflightTests(unittest.TestCase):
             self.assertFalse(path.exists())
             self.assertFalse(Path(str(path) + ".sha256").exists())
 
-    def test_fixed_audit_scope_fails_on_new_error_or_changed_source(self):
-        import hashlib
-        from scripts.audit_external_tsdy_large import check_scope
-
-        failure = dict(group="hiv_train", row=35278, smiles="N->[Cu+2]", ok=False, error="nonstandard")
-        expected = {k: failure[k] for k in ("group", "row", "error")}
-        expected["smiles_sha256"] = hashlib.sha256(failure["smiles"].encode()).hexdigest()
-        contract = dict(source_hashes={"input": "hash"}, known_unsupported=[expected], max_content_tokens=510)
-        self.assertTrue(check_scope([failure], {"input": "hash"}, contract)["passed"])
-        self.assertFalse(check_scope([failure], {"input": "different"}, contract)["passed"])
-        self.assertFalse(check_scope([dict(failure, row=1)], {"input": "hash"}, contract)["passed"])
-        long = dict(group="hiv_test", row=0, ok=True, compact_length=511)
-        self.assertFalse(check_scope([failure, long], {"input": "hash"}, contract)["passed"])
-
     def test_resume_and_provenance(self):
         with tempfile.TemporaryDirectory() as td:
             source = Path(td) / "input.txt"

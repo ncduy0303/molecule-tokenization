@@ -5,7 +5,7 @@ from pathlib import Path
 
 from datasets import Dataset
 
-from scripts.prepare_external_tsdy_training import SPLITS, prepare_task
+from datamodules.molecule_datasets.prepare import SPLITS, prepare_task
 from utils.cache_utils import file_digest
 
 

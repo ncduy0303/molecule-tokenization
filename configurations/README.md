@@ -8,7 +8,7 @@ Hydra combines `config.yaml` with an experiment, dataset and algorithm preset. U
 | MLM                | `tokenizer_benchmark`       | `pubchem10m_mlm_train`        | `bpe_roberta`     |
 | Classification     | `downstream_classification` | `molnet_hiv` or `molnet_bbbp` | `bpe_classifier`  |
 
-Other method presets are in `algorithm/`. `base_*` files provide inherited settings, not standalone runs. Many presets reference local research artifacts, so override tokenizer and model paths.
+Other method presets are in `algorithm/`. `base_*` files provide inherited settings, not standalone runs. Supply the tokenizer directory (or APE vocabulary file) with `algorithm.tokenizer.pretrained`. For finetuning, supply the MLM checkpoint with `algorithm.model.pretrained`.
 
 ## Common settings
 

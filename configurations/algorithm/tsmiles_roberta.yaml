@@ -3,4 +3,4 @@ defaults:
 
 tokenizer:
   type: tsmiles
-  pretrained: "data/pretrained_tokenizers/CANONICAL_TSMILES_5K"
+  pretrained: ???

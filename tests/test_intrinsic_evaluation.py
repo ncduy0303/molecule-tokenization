@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.evaluate_intrinsic import percentile, summarize, convert, decode_frag_words
+from utils.intrinsic_evaluation import percentile, summarize, convert, decode_frag_words
 from utils.external_tsdy import molecules_equal
 
 

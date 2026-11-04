@@ -10,7 +10,6 @@ from .prepared import load_prepared
 # Each loader takes (cfg, tokenizer) and returns a HF DatasetDict with train/val/test splits.
 dataset_registry = {
     "prepared_mlm": load_prepared,
-    "external_tsdy_mlm": load_prepared,
     "pubchem10m_mlm_train": load_pubchem10m_mlm_train,
 }
 

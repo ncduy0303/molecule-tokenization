@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import re
 import time
-from scripts.evaluate_intrinsic import inputs, write, digest
+from utils.intrinsic_evaluation import write, digest
 from utils.shared_fragmentation import partition_molecule, component_partitions, decorated_fragments
 from utils.external_tsdy import _component, encode
 
@@ -28,18 +28,18 @@ def pairs(smiles):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--limit", type=int, default=10000)
-    p.add_argument("--downstream-limit", type=int, default=0)
-    p.add_argument("--output", type=Path, default=Path("outputs/vocabulary_sharing/full"))
+    p.add_argument("--input", type=Path, required=True, help="One input SMILES per line")
+    p.add_argument("--base-vocab", type=Path, required=True, help="Shared base TSDY vocab.json")
+    p.add_argument("--enhanced-vocab", type=Path, required=True, help="Enhanced TSDY vocab.json")
+    p.add_argument("--output", type=Path, required=True)
     a = p.parse_args()
-    if a.output.exists():
-        raise ValueError("Output exists; choose a new directory")
-    print("Loading fixed input samples...", flush=True)
-    rows, source = inputs(a.limit, a.downstream_limit)
-    print(f"Loaded {len(rows):,} molecules: {dict(Counter(r['group'] for r in rows))}", flush=True)
-    # PubChem is the primary descriptive corpus; downstream groups remain separate.
-    base = json.loads(Path("outputs/shared_study_2m_v2/base_TSDY/tokenizer/vocab.json").read_text())
-    enhanced = json.loads(Path("outputs/enhanced_tsdy_v3_1/tokenizer/vocab.json").read_text())
+    rows = [dict(group="input", id=i, smiles=s.strip()) for i, s in enumerate(a.input.read_text().splitlines())]
+    if not rows:
+        p.error("Input is empty")
+    a.output.mkdir(parents=True, exist_ok=False)
+    source = {str(a.input): digest(a.input)}
+    base = json.loads(a.base_vocab.read_text())
+    enhanced = json.loads(a.enhanced_vocab.read_text())
     grouped = defaultdict(
         lambda: defaultdict(lambda: dict(variants=Counter(), counts=Counter(), sites=Counter(), occurrences=0))
     )
@@ -86,7 +86,6 @@ def main():
         a.output / "manifest.json",
         dict(
             source=source,
-            downstream_limit=a.downstream_limit,
             code={
                 str(x): digest(x)
                 for x in [Path(__file__), Path("utils/external_tsdy.py"), Path("utils/shared_fragmentation.py")]
@@ -94,8 +93,8 @@ def main():
             vocabulary_hashes={
                 str(x): digest(x)
                 for x in [
-                    Path("outputs/shared_study_2m_v2/base_TSDY/tokenizer/vocab.json"),
-                    Path("outputs/enhanced_tsdy_v3_1/tokenizer/vocab.json"),
+                    a.base_vocab,
+                    a.enhanced_vocab,
                 ]
             },
             caveat="Site indices use canonical enhanced core atom order; symmetry can make distinct index patterns chemically equivalent. Sharing can also remove stereo distinctions; variants are not attributed solely to attachment sites.",

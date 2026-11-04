@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from scripts.evaluate_intrinsic import evaluate
+from utils.intrinsic_evaluation import evaluate
 from utils.cache_utils import file_digest
 
 

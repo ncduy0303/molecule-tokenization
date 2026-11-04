@@ -101,3 +101,24 @@ sbatch --partition=gpu --gres=gpu:1 --time=03:00:00 --cpus-per-task=8 --mem=32G 
 ```
 
 Here `RUN` refers to the enhanced-TSDY example. Slurm writes the job log to its default location unless you supply `--output` or `--error`.
+
+## Compare fragment vocabulary sharing
+
+Use the same input for both vocabularies. Supply the vocabulary JSON files from a base shared TSDY tokenizer (exocyclic cuts, no PS merges) and an enhanced TSDY tokenizer:
+
+```bash
+python -m scripts.analyze_vocabulary_sharing --input inputs/evaluation.smi \
+  --base-vocab outputs/base-tsdy/tokenizer/vocab.json \
+  --enhanced-vocab outputs/enhanced/tokenizer/vocab.json --output outputs/sharing
+```
+
+## PCATT on Linux
+
+If importing GreedTok reports that `libtbb.so.12` is missing, make a compatible oneTBB runtime available to the training process. One option is a separate local prefix:
+
+```bash
+uv pip install --python .venv/bin/python --prefix "$PWD/.pcatt-runtime" --no-deps 'tbb==2022.3.0'
+export LD_LIBRARY_PATH="$PWD/.pcatt-runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+```
+
+Export the same library path in the batch environment when submitting PCATT runs.

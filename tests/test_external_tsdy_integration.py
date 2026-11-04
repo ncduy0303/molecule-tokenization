@@ -9,7 +9,7 @@ from transformers import DataCollatorForLanguageModeling, DataCollatorWithPaddin
 from utils.cache_utils import value_digest
 from utils.external_tsdy import COMPACT_GRAMMAR, encode, model_tokens, molecules_equal
 from utils.external_tsdy_tokenizer import ExternalTSDYTokenizer, SPECIALS, tokenizer_identity
-from scripts.prepare_external_tsdy_training import prepare_task, init_worker, encode_record
+from datamodules.molecule_datasets.prepare import prepare_task, init_worker, encode_record
 from datamodules.molecule_datasets.prepared import load_prepared
 
 
@@ -182,91 +182,6 @@ class IntegrationTests(unittest.TestCase):
             (folder / "mlm/config.json").write_text(json.dumps(model_cfg))
             with self.assertRaises(ValueError):
                 classifier.build_model(1)
-
-
-class FrozenSelectionTests(unittest.TestCase):
-    def test_mlm_selection_keeps_frozen_rows_and_checks_source_fingerprint(self):
-        import os
-        from scripts.prepare_external_tsdy_training import mlm_inputs
-        from utils.cache_utils import record_cache, file_digest
-
-        with tempfile.TemporaryDirectory() as td:
-            previous = Path.cwd()
-            try:
-                os.chdir(td)
-                root = Path("data/shared_study_2m_v2")
-                (root / "miner").mkdir(parents=True)
-                (root / "base_TSDY_mlm").mkdir()
-                source = dict(dataset="fixture", revision="pinned", split="train", smiles_column="SMILES")
-                ti = root / "miner/subset_indices.json"
-                ti.write_text(json.dumps(dict(indices=[0, 1], total_source=8, source_fingerprint="frozen")))
-                ti_meta = dict(kind="tokenizer_indices", corpus_size=2, seed=42, source=source)
-                record_cache(ti, ti_meta)
-                corpus = root / "miner/corpus.txt"
-                corpus.write_text("C\nO\n")
-                record_cache(corpus, dict(indices=file_digest(ti), selection=ti_meta))
-                mi = root / "base_TSDY_mlm/subset_indices.json"
-                mi.write_text(json.dumps(dict(train=[2, 3], validation=[4], test=[5])))
-                record_cache(
-                    mi,
-                    dict(
-                        kind="mlm_indices",
-                        seed=42,
-                        source=source,
-                        tokenizer_indices=file_digest(ti),
-                        train_size=2,
-                        val_size=1,
-                        test_size=1,
-                    ),
-                )
-                preflight = Path("preflight")
-                preflight.mkdir()
-                (preflight / "manifest.json").write_text(json.dumps(dict(input_sha256=file_digest(corpus))))
-
-                class Selected:
-                    def __init__(self, ids):
-                        self.ids = ids
-
-                    def __getitem__(self, part):
-                        return {"SMILES": ["C" * (i + 1) for i in self.ids[part]]}
-
-                class Raw:
-                    _fingerprint = "frozen"
-
-                    def __len__(self):
-                        return 8
-
-                    def select(self, ids):
-                        return Selected(ids)
-
-                with patch("datasets.load_dataset", return_value=Raw()) as load:
-                    groups, provider, identity = mlm_inputs(preflight, 0)
-                    self.assertEqual(groups, dict(train=[2, 3], validation=[4], test=[5]))
-                    self.assertEqual(
-                        provider("train", 0, 2), [dict(source_row=2, text="CCC"), dict(source_row=3, text="CCCC")]
-                    )
-                    load.assert_called_once_with("fixture", revision="pinned", split="train")
-                raw = Raw()
-                raw._fingerprint = "changed"
-                with patch("datasets.load_dataset", return_value=raw), self.assertRaises(ValueError):
-                    mlm_inputs(preflight, 0)
-                mi.write_text(json.dumps(dict(train=[0, 3], validation=[4], test=[5])))
-                record_cache(
-                    mi,
-                    dict(
-                        kind="mlm_indices",
-                        seed=42,
-                        source=source,
-                        tokenizer_indices=file_digest(ti),
-                        train_size=2,
-                        val_size=1,
-                        test_size=1,
-                    ),
-                )
-                with self.assertRaises(ValueError):
-                    mlm_inputs(preflight, 0)
-            finally:
-                os.chdir(previous)
 
 
 if __name__ == "__main__":

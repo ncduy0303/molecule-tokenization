@@ -198,3 +198,26 @@ archive/
 /ca_partial_scores.tar.gz
 /ca_seed_trials_review.tar.gz
 /.ca-runtime/
+
+# Historical trial launchers, frozen study drivers and presets
+/configurations/algorithm/ape_classifier_pretrained_hiv.yaml
+/configurations/algorithm/ape_roberta_pretrained.yaml
+/configurations/algorithm/bpe_classifier_pretrained_hiv.yaml
+/configurations/algorithm/bpe_roberta_pretrained.yaml
+/configurations/audits/external_tsdy_scope.json
+/configurations/dataset/external_tsdy_bbbp.yaml
+/configurations/dataset/external_tsdy_hiv.yaml
+/configurations/dataset/external_tsdy_mlm.yaml
+/scripts/CA_SEED_TRIALS.md
+/scripts/audit_external_tsdy_large.py
+/scripts/bundle_ca_seed_trials.sh
+/scripts/ca_seed_trials.py
+/scripts/classify_reconstruction.py
+/scripts/evaluate_intrinsic.py
+/scripts/install_ca_tbb.sh
+/scripts/prepare_external_tsdy_training.py
+/scripts/slurm/ca_prepare.sbatch
+/scripts/slurm/ca_trial.sbatch
+/scripts/submit_ca_seed_trials.py
+/.pcatt-runtime/
+/.vscode/

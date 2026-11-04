@@ -1,22 +1,14 @@
-"""CPU-only, resumable preparation of frozen enhanced-TSDY model inputs.
-
-No resampling. Unsupported chemistry blocks export. Truncation is explicit and
-reported. The only downstream exclusion is the source-bound HIV train complex,
-and the same scope is used for the optional base-TSDY/fragSMILES controls.
-"""
-
-import argparse
+"""Prepare validated Arrow splits for one tokenizer and dataset."""
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
-import csv
 import json
 import os
 from pathlib import Path
 from importlib.metadata import version
 
-from utils.cache_utils import file_digest, value_digest, read_metadata, validate_indices
-from utils.external_tsdy import TOKEN_FORMAT, encode, model_tokens, decode_tokens, molecules_equal
-from utils.external_tsdy_tokenizer import ExternalTSDYTokenizer, export_tokenizer, tokenizer_identity
+from utils.cache_utils import file_digest
+from utils.external_tsdy import encode, model_tokens, decode_tokens, molecules_equal
+from utils.external_tsdy_tokenizer import ExternalTSDYTokenizer, tokenizer_identity
 from scripts.prepare_external_tsdy import write_json
 
 SPLITS = ("train", "validation", "test")
@@ -138,7 +130,7 @@ def prepare_task(
         code={
             p: file_digest(p)
             for p in (
-                "scripts/prepare_external_tsdy_training.py",
+                "datamodules/molecule_datasets/prepare.py",
                 "utils/external_tsdy_tokenizer.py",
                 "utils/external_tsdy.py",
                 "utils/shared_fragmentation.py",
@@ -279,186 +271,3 @@ def prepare_task(
         )
     finally:
         lock.rmdir()
-
-
-def mlm_inputs(preflight, smoke_limit):
-    """Use the exact existing selection and enforce tokenizer/MLM separation."""
-    from datasets import load_dataset
-
-    corpus = Path("data/shared_study_2m_v2/miner/corpus.txt")
-    corpus_identity = read_metadata(corpus)
-    manifest = json.loads((Path(preflight) / "manifest.json").read_text())
-    if file_digest(corpus) != manifest["input_sha256"]:
-        raise ValueError("Tokenizer fitting corpus changed")
-    ti = Path("data/shared_study_2m_v2/miner/subset_indices.json")
-    mi = Path("data/shared_study_2m_v2/base_TSDY_mlm/subset_indices.json")
-    tokenizer_meta = read_metadata(ti)
-    mlm_meta = read_metadata(mi)
-    t = json.loads(ti.read_text())
-    m = json.loads(mi.read_text())
-    if corpus_identity["indices"] != file_digest(ti) or corpus_identity["selection"] != tokenizer_meta:
-        raise ValueError("Vocabulary fitting and tokenizer selection differ")
-    if mlm_meta["tokenizer_indices"] != file_digest(ti) or mlm_meta["source"] != tokenizer_meta["source"]:
-        raise ValueError("MLM and tokenizer selection identities differ")
-    groups = {s: m[s] for s in SPLITS}
-    validate_indices({"tokenizer": t["indices"]}, t["total_source"], {"tokenizer": tokenizer_meta["corpus_size"]})
-    validate_indices(
-        groups,
-        t["total_source"],
-        dict(train=mlm_meta["train_size"], validation=mlm_meta["val_size"], test=mlm_meta["test_size"]),
-        t["indices"],
-    )
-    if smoke_limit:
-        groups = {s: ids[:smoke_limit] for s, ids in groups.items()}
-    source = mlm_meta["source"]
-    raw = load_dataset(source["dataset"], revision=source["revision"], split=source["split"])
-    if len(raw) != t["total_source"] or raw._fingerprint != t["source_fingerprint"]:
-        raise ValueError("Pinned source dataset contents/fingerprint changed")
-    selected = {s: raw.select(ids) for s, ids in groups.items()}
-
-    def provider(split, start, stop):
-        texts = selected[split][start:stop][source["smiles_column"]]
-        return [dict(source_row=i, text=text) for i, text in zip(groups[split][start:stop], texts)]
-
-    return (
-        groups,
-        provider,
-        dict(
-            selection=mlm_meta,
-            indices_sha256=file_digest(mi),
-            tokenizer_indices_sha256=file_digest(ti),
-            excluded_rows=[],
-            split_rows_sha256=value_digest(groups),
-        ),
-    )
-
-
-def downstream_inputs(task, kind, smoke_limit):
-    contract = json.loads(Path("configurations/audits/external_tsdy_scope.json").read_text())
-    for file, sha in contract["source_hashes"].items():
-        if file_digest(file) != sha:
-            raise ValueError(f"Frozen audit source changed: {file}")
-    source = Path("data/shared_study_2m_v2") / (
-        "base_fragsmiles_hiv_repair2" if task == "hiv" else "base_fragsmiles_bbbp"
-    )
-    csvpath = source / f"{task}.csv"
-    index = source / f"{task}_split_indices.json"
-    rows = list(csv.DictReader(csvpath.open()))
-    indices = json.loads(index.read_text())
-    groups = {s: indices[s][:] for s in SPLITS}
-    validate_indices(groups, len(rows))
-    target = "HIV_active" if task == "hiv" else "p_np"
-    # The frozen CSVs have no missing labels; avoid changing row numbering.
-    if any(r[target] not in ("0", "1", "0.0", "1.0") for r in rows):
-        raise ValueError("Unexpected/missing frozen labels")
-    exclusions = []
-    for expected in contract["known_unsupported"]:
-        if expected["group"] != f"{task}_train":
-            continue
-        import hashlib
-
-        row = expected["row"]
-        if hashlib.sha256(rows[row]["smiles"].encode()).hexdigest() != expected["smiles_sha256"]:
-            raise ValueError("Scoped HIV molecule identity changed")
-        groups["train"].remove(row)
-        exclusions.append(expected)
-    if smoke_limit:
-        # Fixed diagnostic subset with both labels if available, never used for final metrics.
-        for split, ids in groups.items():
-            chosen = []
-            for label in (0, 1):
-                chosen.extend([i for i in ids if int(float(rows[i][target])) == label][: max(1, smoke_limit // 2)])
-            groups[split] = sorted(chosen)
-    texts = {}
-    source_checks = {str(csvpath): file_digest(csvpath), str(index): file_digest(index)}
-    if kind != "enhanced":
-        suffix = "_repair2" if kind == "fragsmiles" and task == "hiv" else ""
-        cached = Path(f"data/shared_study_2m_v2/base_{kind}_{task}{suffix}")
-        control_tok = load_tokenizer(Path(f"outputs/shared_study_2m_v2/base_{kind}/tokenizer"), kind)
-        if file_digest(cached / f"{task}.csv") != file_digest(csvpath):
-            raise ValueError("Control CSV differs from the frozen shared source")
-        if json.loads((cached / f"{task}_split_indices.json").read_text()) != indices:
-            raise ValueError("Control splits differ from enhanced splits")
-        for split in SPLITS:
-            prefix = "fragsmiles" if kind == "fragsmiles" else "tsmiles_exocyclic_TSDY"
-            file = cached / f"{task}_canon_{prefix}_{split}_seed42.txt"
-            meta = read_metadata(file)
-            if meta["representation"] != control_tok.init_kwargs.get("molecular_representation"):
-                raise ValueError("Control tokenizer and cached representation differ")
-            if meta["indices"] != file_digest(cached / f"{task}_split_indices.json"):
-                raise ValueError("Control strings and selected indices differ")
-            lines = file.read_text().splitlines()
-            if len(lines) != len(indices[split]):
-                raise ValueError("Control string count mismatch")
-            texts[split] = dict(zip(indices[split], lines))
-            source_checks[str(file)] = file_digest(file)
-
-    def provider(split, start, stop):
-        return [
-            dict(
-                source_row=i,
-                text=rows[i]["smiles"] if kind == "enhanced" else texts[split][i],
-                labels=[float(rows[i][target])],
-            )
-            for i in groups[split][start:stop]
-        ]
-
-    return (
-        groups,
-        provider,
-        dict(
-            files=source_checks,
-            excluded_rows=exclusions,
-            split_rows_sha256=value_digest(groups),
-            scope_sha256=file_digest("configurations/audits/external_tsdy_scope.json"),
-        ),
-    )
-
-
-def main():
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--preflight", type=Path, default=Path("outputs/enhanced_tsdy_v3_1/preflight_2m"))
-    p.add_argument("--tokenizer-output", type=Path, default=Path("outputs/enhanced_tsdy_v3_1/tokenizer"))
-    p.add_argument("--output", type=Path, default=Path("data/enhanced_tsdy_v3_1"))
-    p.add_argument("--tasks", nargs="+", choices=["mlm", "hiv", "bbbp"], default=["mlm", "hiv", "bbbp"])
-    p.add_argument(
-        "--controls", action="store_true", help="Also prepare matched HIV controls using frozen base tokenizers"
-    )
-    p.add_argument("--workers", type=int, default=8)
-    p.add_argument("--length-policy", choices=["error", "truncate"], default="error")
-    p.add_argument("--smoke-limit", type=int, default=0)
-    p.add_argument("--resume", action="store_true")
-    a = p.parse_args()
-    if a.workers < 1 or a.smoke_limit < 0:
-        p.error("Invalid workers/smoke limit")
-    export_tokenizer(a.preflight, a.tokenizer_output)
-    if a.smoke_limit and a.output == Path("data/enhanced_tsdy_v3_1"):
-        p.error("Choose a separate --output for smoke data")
-    for task in a.tasks:
-        kinds = ["enhanced"] + (["TSDY", "fragsmiles"] if a.controls and task == "hiv" else [])
-        for kind in kinds:
-            groups, provider, identity = (
-                mlm_inputs(a.preflight, a.smoke_limit)
-                if task == "mlm"
-                else downstream_inputs(task, kind, a.smoke_limit)
-            )
-            tokenizer_path = (
-                a.tokenizer_output if kind == "enhanced" else Path(f"outputs/shared_study_2m_v2/base_{kind}/tokenizer")
-            )
-            prepare_task(
-                a.output / f"{kind}_{task}",
-                groups,
-                provider,
-                identity,
-                tokenizer_path,
-                kind,
-                task,
-                workers=a.workers,
-                length_policy=a.length_policy,
-                smoke=bool(a.smoke_limit),
-                resume=a.resume,
-            )
-
-
-if __name__ == "__main__":
-    main()

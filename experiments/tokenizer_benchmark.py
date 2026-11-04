@@ -48,8 +48,6 @@ class TokenizerBenchmarkExperiment(BaseExperiment):
         "fragsmiles_roberta": MoleculeMLMAlgo,
         "tsmiles_roberta": MoleculeMLMAlgo,
         "external_tsdy_roberta": MoleculeMLMAlgo,
-        "ape_roberta_pretrained": MoleculeMLMAlgo,
-        "bpe_roberta_pretrained": MoleculeMLMAlgo,
     }
 
     def __init__(

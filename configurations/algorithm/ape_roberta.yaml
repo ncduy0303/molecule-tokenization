@@ -4,4 +4,4 @@ defaults:
 tokenizer:
   type: ape
   # https://huggingface.co/mikemayuare/SMILYAPE/resolve/main/tokenizer.json
-  pretrained: "data/ape_tokenizer/mikemayuare/vocab.json"
+  pretrained: ???

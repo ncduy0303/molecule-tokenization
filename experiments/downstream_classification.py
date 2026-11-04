@@ -67,8 +67,6 @@ class DownstreamClassificationExperiment(BaseExperiment):
         "smirk_classifier": MoleculeClassificationAlgo,
         "smirk_pcatt_classifier": MoleculeClassificationAlgo,
         "spe_classifier": MoleculeClassificationAlgo,
-        "ape_classifier_pretrained_hiv": MoleculeClassificationAlgo,
-        "bpe_classifier_pretrained_hiv": MoleculeClassificationAlgo,
     }
 
     def __init__(
