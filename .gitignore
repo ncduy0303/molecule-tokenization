@@ -221,3 +221,8 @@ archive/
 /scripts/submit_ca_seed_trials.py
 /.pcatt-runtime/
 /.vscode/
+
+# Private presentation working copies
+/presentaion/final/SCRIPT.md
+/presentaion/final/*_Draft.pptx
+/presentaion/final/background_review/

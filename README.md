@@ -55,12 +55,12 @@ Read `$RUN/bbbp/test_results.json` for test ROC-AUC. The classifier selected by 
 
 ## Choose a method
 
-| Report comparison                            | What to run                                                                                                                                                                                                                                                                                |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Initial benchmark (§5.1, Appendix C)         | The baseline above uses BPE on SMILES. The [algorithm presets](configurations/algorithm/) also cover SMIRK, PCATT, SPE, APE, fragSMILES, and t-SMILES. [Dataset settings](datamodules/README.md) control conversion to SAFE or fragment strings.                                           |
-| Shared fragmentation and PS merging (§5.2)   | Use an exocyclic partition with fragSMILES, TSID, TSDY, or TSIS. For the PS variant, fit one rule file on the tokenizer corpus and pass it to each later stage. [Mining, tokenizer fitting, MLM, and finetuning commands](scripts/SINGLE_RUNS.md#shared-ps-mining-and-fragment-vocabulary) |
-| Enhanced TSDY (§5.3)                         | Fit a vocabulary of clean fragment cores and attachment tokens, then prepare MLM or binary classification splits. [Local-file workflow](scripts/SINGLE_RUNS.md#enhanced-tsdy-from-local-files)                                                                                             |
-| Intrinsic evaluation (§5.4, Appendix D) | Supply a saved tokenizer, its representation settings, and a SMILES file to measure token length, fertility, and unknown-token frequency. [Evaluation command and output files](scripts/SINGLE_RUNS.md#intrinsic-evaluation)                                                          |
+| Report comparison                          | What to run                                                                                                                                                                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Initial benchmark (§5.1, Appendix C)       | The baseline above uses BPE on SMILES. The [algorithm presets](configurations/algorithm/) also cover SMIRK, PCATT, SPE, APE, fragSMILES, and t-SMILES. [Dataset settings](datamodules/README.md) control conversion to SAFE or fragment strings.                                           |
+| Shared fragmentation and PS merging (§5.2) | Use an exocyclic partition with fragSMILES, TSID, TSDY, or TSIS. For the PS variant, fit one rule file on the tokenizer corpus and pass it to each later stage. [Mining, tokenizer fitting, MLM, and finetuning commands](scripts/SINGLE_RUNS.md#shared-ps-mining-and-fragment-vocabulary) |
+| Enhanced TSDY (§5.3)                       | Fit a vocabulary of clean fragment cores and attachment tokens, then prepare MLM or binary classification splits. [Local-file workflow](scripts/SINGLE_RUNS.md#enhanced-tsdy-from-local-files)                                                                                             |
+| Intrinsic evaluation (§5.4, Appendix D)    | Supply a saved tokenizer, its representation settings, and a SMILES file to measure token length, fertility, and unknown-token frequency. [Evaluation command and output files](scripts/SINGLE_RUNS.md#intrinsic-evaluation)                                                               |
 
 ## Configure a run
 
@@ -69,9 +69,11 @@ Read `$RUN/bbbp/test_results.json` for test ROC-AUC. The classifier selected by 
 - **Execution.** Each command runs one experiment. To submit it to Slurm, pass the same overrides to the [single-job batch file](scripts/slurm/single_run.sbatch). Optional W&B logging uses `wandb.mode=online wandb.entity=YOUR_ENTITY wandb.project=YOUR_PROJECT` after `wandb login`. Local metrics are written with the default disabled logging mode.
 - **Checkpoints.** To resume an interrupted training run from a full Trainer checkpoint, see [checkpoint settings](experiments/README.md#resuming-training).
 
-## Report and attribution
+## Report, presentation and attribution
 
 Read the [final dissertation](reports/final/FYP_Final_Report.pdf) or browse the [Typst source](reports/final/main.typ). The W&B [downstream results](https://wandb.ai/ncduy0303/molecule-tokenization?nw=d2odmpoik86) and [pretraining runs](https://wandb.ai/ncduy0303/molecule-tokenization?nw=bgzbsfs4rwz) correspond to the report. The [earlier assessment](reports/CA/) is archived separately.
+
+The [final presentation slides](presentaion/final/FYP_Final_Presentation.pptx), presented on 17 November 2026, summarize the project.
 
 ## Template attribution
 
